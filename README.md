@@ -3,11 +3,11 @@ Golang Client for Confluent's Schema Registry
 
 <img align="left" width="150" height="150" src="images/Gopher_Confluent_Logo.png">
 
-**srclient** is a Golang client for [Confluent Schema Registry](https://www.confluent.io/confluent-schema-registry/), a service that provides a RESTful interface for developers to define standard schemas for their events, share them across the organization and safely evolve them in a way that is backward compatible and future proof. By using this client, developers building Golang applications can interact with Schema Registry and retrieve schemas for their applications to use to serialize and/or deserialize records using [Apache Avro](https://avro.apache.org/). By using this client, developers building Golang applications can interact with Schema Registry and retrieve schemas for their applications to use to serialize and/or deserialize records using [Apache Avro](https://avro.apache.org/).
+**srclient** is a Golang client for [Confluent Schema Registry](https://www.confluent.io/confluent-schema-registry/), a software that provides a RESTful interface for developers to define standard schemas for their events, share them across the organization and safely evolve them in a way that is backward compatible and future proof. By using this client, developers building Golang applications that need to write and read records to/from [Apache Kafka](https://kafka.apache.org/) can use Schema Registry to retrieve schemas for their applications and use it to serialize and/or deserialize records using [Avro](https://avro.apache.org/).
 
 Features:
 
-- **Simple to Use** - This client provides a very high-level abstraction over the operations that developers writing applications for [Apache Kafka](https://kafka.apache.org/) typically need. Thus, it will feel natural for them using the functions that this client provides. Moreover, developers don't need to handle low-level HTTP details to communicate with Schema Registry.
+- **Simple to Use** - This client provides a very high-level abstraction over the operations that developers writing applications for Apache Kafka typically need. Thus, it will feel natural for them using the functions that this client provides. Moreover, developers don't need to handle low-level HTTP details to communicate with Schema Registry.
 
 - **Performance** - This client provides caching capabilities. This means that any data retrieved from Schema Registry can be cached locally to improve the performance of subsequent requests. This allows applications that are not co-located with Schema Registry to reduce the latency necessary on each request. This functionality can be disabled programmatically.
 
