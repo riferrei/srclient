@@ -9,11 +9,11 @@ Features:
 
 - **Simple to Use** - This client provides a very high-level abstraction over the operations that developers writing applications for [Apache Kafka](https://kafka.apache.org/) typically need. Thus, it will feel natural for them using the functions that this client provides. Moreover, developers don't need to handle low-level HTTP details to communicate with Schema Registry.
 
-- **Performance** - This client provides caching capabilities. This means that any data retrieved from Schema Registry can be cached locally to improve the performance of subsequent requests. This allows applications that are not co-located with Schema Registry to reduce the latency necessary on each request.
+- **Performance** - This client provides caching capabilities. This means that any data retrieved from Schema Registry can be cached locally to improve the performance of subsequent requests. This allows applications that are not co-located with Schema Registry to reduce the latency necessary on each request. This functionality can be disabled programmatically.
 
 - **Confluent Cloud** - Go developers using [Confluent Cloud](https://www.confluent.io/confluent-cloud/) can use this client to interact with the fully managed Schema Registry, which provides important features like schema enforcement that enable teams to reduce deployment issues by governing the schema changes as they evolve.
 
-This client creates codec's based on the Avro support from the [goavro](https://github.com/linkedin/goavro) project. Developers can use these codec's to encode and decode from both binary and textual JSON Avro data. If you don't plan to use these codec's, their generation can be disabled programmatically.
+This client creates codec's based on the Avro support from the [goavro](https://github.com/linkedin/goavro) project. Developers can use these codec's to encode and decode from both binary and textual JSON Avro data. If you are using generated code based on Avro compilers, you can disable the codec creation programmatically.
 
 **License**: [Apache License v2.0](http://www.apache.org/licenses/LICENSE-2.0)
 
@@ -133,17 +133,12 @@ func main() {
 		"group.id":          "myGroup",
 		"auto.offset.reset": "earliest",
 	})
-
 	if err != nil {
 		panic(err)
 	}
 
-	// Create a new client with caching enabled, then only the
-	// first invocation will actually perform an HTTP request
-	schemaRegistryClient := srclient.CreateSchemaRegistryClient("http://localhost:8081")
-	schemaRegistryClient.EnableCaching(true)
-
 	c.SubscribeTopics([]string{"myTopic", "^aRegex.*[Tt]opic"}, nil)
+	schemaRegistryClient := srclient.CreateSchemaRegistryClient("http://localhost:8081")
 
 	for {
 		msg, err := c.ReadMessage(-1)

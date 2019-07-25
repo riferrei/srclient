@@ -23,6 +23,7 @@ type SchemaRegistryClient struct {
 	credentials            *credentials
 	httpClient             *http.Client
 	cachingEnabled         bool
+	codecCreationEnabled   bool
 	idSchemaCache          map[int]*Schema
 	idSchemaCacheLock      sync.RWMutex
 	subjectSchemaCache     map[string]*Schema
@@ -35,8 +36,9 @@ type SchemaRegistryClient struct {
 // representation of the schema associated with
 // the ID.
 type Schema struct {
-	ID    int
-	Codec *goavro.Codec
+	ID     int
+	Schema string
+	Codec  *goavro.Codec
 }
 
 type credentials struct {
@@ -66,7 +68,8 @@ const (
 // applications to interact with Schema Registry over HTTP.
 func CreateSchemaRegistryClient(schemaRegistryURL string) *SchemaRegistryClient {
 	return &SchemaRegistryClient{schemaRegistryURL: schemaRegistryURL,
-		httpClient:         &http.Client{Timeout: 5 * time.Second},
+		httpClient:     &http.Client{Timeout: 5 * time.Second},
+		cachingEnabled: true, codecCreationEnabled: true,
 		idSchemaCache:      make(map[int]*Schema),
 		subjectSchemaCache: make(map[string]*Schema)}
 }
@@ -96,9 +99,18 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	codec, err := goavro.NewCodec(schemaResp.Schema)
-	schema := &Schema{ID: schemaID, Codec: codec}
+	var codec *goavro.Codec
+	if client.codecCreationEnabled {
+		codec, err = goavro.NewCodec(schemaResp.Schema)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var schema = &Schema{
+		ID:     schemaID,
+		Schema: schemaResp.Schema,
+		Codec:  codec,
+	}
 	if client.cachingEnabled && err == nil {
 		client.idSchemaCacheLock.Lock()
 		client.idSchemaCache[schemaID] = schema
@@ -181,11 +193,18 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string, 
 	if err != nil {
 		return nil, err
 	}
-	codec, err := goavro.NewCodec(schema)
-	if err != nil {
-		return nil, err
+	var codec *goavro.Codec
+	if client.codecCreationEnabled {
+		codec, err = goavro.NewCodec(schema)
+		if err != nil {
+			return nil, err
+		}
 	}
-	newSchema := &Schema{ID: schemaResp.ID, Codec: codec}
+	var newSchema = &Schema{
+		ID:     schemaResp.ID,
+		Schema: schema,
+		Codec:  codec,
+	}
 	if client.cachingEnabled && err == nil {
 		client.subjectSchemaCacheLock.Lock()
 		client.subjectSchemaCache[subject] = newSchema
@@ -212,11 +231,17 @@ func (client *SchemaRegistryClient) SetTimeout(timeout time.Duration) {
 	client.httpClient.Timeout = timeout
 }
 
-// EnableCaching allows application to cache any values
+// CachingEnabled allows application to cache any values
 // that have been returned via this client, which may
 // speed up the performance if these values never changes.
-func (client *SchemaRegistryClient) EnableCaching(value bool) {
+func (client *SchemaRegistryClient) CachingEnabled(value bool) {
 	client.cachingEnabled = value
+}
+
+// CodecCreationEnabled allows the application to enable/disable
+// the automatic creation of codec's every time a schema is returned.
+func (client *SchemaRegistryClient) CodecCreationEnabled(value bool) {
+	client.codecCreationEnabled = value
 }
 
 func (client *SchemaRegistryClient) getVersion(subject string,
@@ -242,13 +267,17 @@ func (client *SchemaRegistryClient) getVersion(subject string,
 	if err != nil {
 		return nil, err
 	}
-	codec, err := goavro.NewCodec(schemaResp.Schema)
-	if err != nil {
-		return nil, err
+	var codec *goavro.Codec
+	if client.codecCreationEnabled {
+		codec, err = goavro.NewCodec(schemaResp.Schema)
+		if err != nil {
+			return nil, err
+		}
 	}
 	var schema = &Schema{
-		ID:    schemaResp.ID,
-		Codec: codec,
+		ID:     schemaResp.ID,
+		Schema: schemaResp.Schema,
+		Codec:  codec,
 	}
 	if client.cachingEnabled && err == nil {
 		client.subjectSchemaCacheLock.Lock()
