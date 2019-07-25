@@ -7,7 +7,7 @@ By using this client, developers building Go applications can interact with Sche
 
 Features:
 
-- **Simple to Use** - This client provides a very high-level abstraction over the operations that developers writing producers for [Apache Kafka](https://kafka.apache.org/) typically need. Thus, it will feel natural for them using the functions that this client provides. Moreover, developers don't need to handle low-level HTTP details to communicate with Schema Registry.
+- **Simple to Use** - This client provides a very high-level abstraction over the operations that developers writing applications for [Apache Kafka](https://kafka.apache.org/) typically need. Thus, it will feel natural for them using the functions that this client provides. Moreover, developers don't need to handle low-level HTTP details to communicate with Schema Registry.
 
 - **Performance** - This client provides caching capabilities. This means that any data retrieved from Schema Registry can be cached locally to improve the performance of subsequent requests. This allows applications that are not co-located with Schema Registry to reduce the latency necessary on each request.
 
