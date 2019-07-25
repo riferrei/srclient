@@ -115,7 +115,7 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 // well as a codec created from the textual representation
 // of the schema associated with the ID.
 func (client *SchemaRegistryClient) GetLatestSchema(subject string, isKey bool) (*Schema, error) {
-	return client.getSchemaByVersion(subject, "latest", isKey)
+	return client.getVersion(subject, "latest", isKey)
 }
 
 // GetSchemaVersions returns a list of versions of a given
@@ -145,15 +145,15 @@ func (client *SchemaRegistryClient) GetSchemaVersions(subject string, isKey bool
 // well as a codec created from the textual representation
 // of the schema associated with the ID.
 func (client *SchemaRegistryClient) GetSchemaByVersion(subject string, version int, isKey bool) (*Schema, error) {
-	return client.getSchemaByVersion(subject, fmt.Sprintf("%d", version), isKey)
+	return client.getVersion(subject, string(version), isKey)
 }
 
-// CreateSubject creates a new schema in Schema Registry and
+// CreateSchema creates a new schema in Schema Registry and
 // associates this schema with the subject provided. It returns
 // a the new schema that contains the ID that uniquely identifies
 // that schema, as well as a codec created from the textual
 // representation of the schema associated with the ID.
-func (client *SchemaRegistryClient) CreateSubject(subject string, schema string, isKey bool) (*Schema, error) {
+func (client *SchemaRegistryClient) CreateSchema(subject string, schema string, isKey bool) (*Schema, error) {
 
 	if client.cachingEnabled {
 		client.subjectSchemaCacheLock.RLock()
@@ -219,7 +219,7 @@ func (client *SchemaRegistryClient) EnableCaching(value bool) {
 	client.cachingEnabled = value
 }
 
-func (client *SchemaRegistryClient) getSchemaByVersion(subject string,
+func (client *SchemaRegistryClient) getVersion(subject string,
 	version string, isKey bool) (*Schema, error) {
 
 	if client.cachingEnabled {

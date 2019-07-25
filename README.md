@@ -82,7 +82,7 @@ func main() {
 	schema, err := schemaRegistryClient.GetLatestSchema(topic, false)
 	if schema == nil {
 		schemaBytes, _ := ioutil.ReadFile("complexType.avsc")
-		schema, err = schemaRegistryClient.CreateSubject(topic, string(schemaBytes), false)
+		schema, err = schemaRegistryClient.CreateSchema(topic, string(schemaBytes), false)
 		if err != nil {
 			panic(fmt.Sprintf("Error creating the schema %s", err))
 		}
@@ -138,7 +138,7 @@ func main() {
 		panic(err)
 	}
 
-	// Create a new client with caching enabled, the only the
+	// Create a new client with caching enabled, then only the
 	// first invocation will actually perform an HTTP request
 	schemaRegistryClient := srclient.CreateSchemaRegistryClient("http://localhost:8081")
 	schemaRegistryClient.EnableCaching(true)
