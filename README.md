@@ -17,11 +17,23 @@ This client creates codec's based on the Avro support from the [goavro](https://
 
 **License**: [Apache License v2.0](http://www.apache.org/licenses/LICENSE-2.0)
 
+Installing
+-------------------
+
+Manual install:
+```bash
+go get -u github.com/riferrei/srclient
+```
+
+Golang import:
+```golang
+import "github.com/riferrei/srclient"
+```
 
 Examples
-========
+-------------------
 
-Producer
+**Producer**
 
 ```golang
 import (
@@ -103,7 +115,7 @@ func main() {
 }
 ```
 
-Consumer
+**Consumer**
 
 ```golang
 import (
