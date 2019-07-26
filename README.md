@@ -64,7 +64,7 @@ func main() {
 	defer p.Close()
 
 	go func() {
-		for event := range producer.Events() {
+		for event := range p.Events() {
 			switch ev := event.(type) {
 			case *kafka.Message:
 				message := ev
