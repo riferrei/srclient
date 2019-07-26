@@ -144,10 +144,10 @@ func main() {
 	for {
 		msg, err := c.ReadMessage(-1)
 		if err == nil {
-			schemaID := binary.BigEndian.Uint32(msg.Value[1:5])
 			// 3) Recover the schema id from the message and use the
 			// client to retrieve the schema from Schema Registry.
 			// Then use it to deserialize the record accordingly.
+			schemaID := binary.BigEndian.Uint32(msg.Value[1:5])
 			schema, err := schemaRegistryClient.GetSchema(int(schemaID))
 			if err != nil {
 				panic(fmt.Sprintf("Error getting the schema with id '%d' %s", schemaID, err))
