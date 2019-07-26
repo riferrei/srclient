@@ -88,14 +88,14 @@ func main() {
 		}
 	}
 	schemaIDBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(schemaIDBytes, uint32(schema.ID))
+	binary.BigEndian.PutUint32(schemaIDBytes, uint32(schema.ID()))
 
 	// 3) Serialize the record using the schema provided by the client,
 	// making sure to include the schema id as part of the record.
 	newComplexType := ComplexType{ID: 1, Name: "Gopher"}
 	value, _ := json.Marshal(newComplexType)
-	native, _, _ := schema.Codec.NativeFromTextual(value)
-	valueBytes, _ := schema.Codec.BinaryFromNative(nil, native)
+	native, _, _ := schema.Codec().NativeFromTextual(value)
+	valueBytes, _ := schema.Codec().BinaryFromNative(nil, native)
 
 	var recordValue []byte
 	recordValue = append(recordValue, byte(0))
@@ -152,8 +152,8 @@ func main() {
 			if err != nil {
 				panic(fmt.Sprintf("Error getting the schema with id '%d' %s", schemaID, err))
 			}
-			native, _, _ := schema.Codec.NativeFromBinary(msg.Value[5:])
-			value, _ := schema.Codec.TextualFromNative(nil, native)
+			native, _, _ := schema.Codec().NativeFromBinary(msg.Value[5:])
+			value, _ := schema.Codec().TextualFromNative(nil, native)
 			fmt.Printf("Here is the message %s\n", string(value))
 		} else {
 			fmt.Printf("Error consuming the message: %v (%v)\n", err, msg)
