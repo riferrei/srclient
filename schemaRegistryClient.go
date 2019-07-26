@@ -31,14 +31,13 @@ type SchemaRegistryClient struct {
 	subjectSchemaCacheLock sync.RWMutex
 }
 
-// Schema is a data structure that holds
-// all the relevant information about a
-// schema in Schema Registry.
+// Schema is a data structure that holds all
+// the relevant information about schemas.
 type Schema struct {
-	ID      int
-	Schema  string
-	Version int
-	Codec   *goavro.Codec
+	id      int
+	schema  string
+	version int
+	codec   *goavro.Codec
 }
 
 type credentials struct {
@@ -106,9 +105,9 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 		}
 	}
 	var schema = &Schema{
-		ID:     schemaID,
-		Schema: schemaResp.Schema,
-		Codec:  codec,
+		id:     schemaID,
+		schema: schemaResp.Schema,
+		codec:  codec,
 	}
 
 	if client.cachingEnabled {
@@ -199,13 +198,13 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string, 
 
 		// Update the subject-2-schema cache
 		client.subjectSchemaCacheLock.Lock()
-		cacheKey := cacheKey(concreteSubject, strconv.Itoa(newSchema.Version))
+		cacheKey := cacheKey(concreteSubject, strconv.Itoa(newSchema.version))
 		client.subjectSchemaCache[cacheKey] = newSchema
 		client.subjectSchemaCacheLock.Unlock()
 
 		// Update the id-2-schema cache
 		client.idSchemaCacheLock.Lock()
-		client.idSchemaCache[newSchema.ID] = newSchema
+		client.idSchemaCache[newSchema.id] = newSchema
 		client.idSchemaCacheLock.Unlock()
 
 	}
@@ -276,10 +275,10 @@ func (client *SchemaRegistryClient) getVersion(subject string,
 		}
 	}
 	var schema = &Schema{
-		ID:      schemaResp.ID,
-		Schema:  schemaResp.Schema,
-		Version: schemaResp.Version,
-		Codec:   codec,
+		id:      schemaResp.ID,
+		schema:  schemaResp.Schema,
+		version: schemaResp.Version,
+		codec:   codec,
 	}
 
 	if client.cachingEnabled {
@@ -292,25 +291,12 @@ func (client *SchemaRegistryClient) getVersion(subject string,
 
 		// Update the id-2-schema cache
 		client.idSchemaCacheLock.Lock()
-		client.idSchemaCache[schema.ID] = schema
+		client.idSchemaCache[schema.id] = schema
 		client.idSchemaCacheLock.Unlock()
 
 	}
 
 	return schema, nil
-}
-
-func cacheKey(subject string, version string) string {
-	return fmt.Sprintf("%s-%s", subject, version)
-}
-
-func getConcreteSubject(subject string, isKey bool) string {
-	if isKey {
-		subject = fmt.Sprintf("%s-key", subject)
-	} else {
-		subject = fmt.Sprintf("%s-value", subject)
-	}
-	return subject
 }
 
 func (client *SchemaRegistryClient) httpRequest(method, uri string, payload io.Reader) ([]byte, error) {
@@ -337,6 +323,39 @@ func (client *SchemaRegistryClient) httpRequest(method, uri string, payload io.R
 	}
 
 	return ioutil.ReadAll(resp.Body)
+}
+
+// ID ensures access to ID
+func (schema *Schema) ID() int {
+	return schema.id
+}
+
+// Schema ensures access to Schema
+func (schema *Schema) Schema() string {
+	return schema.schema
+}
+
+// Version ensures access to Version
+func (schema *Schema) Version() int {
+	return schema.version
+}
+
+// Codec ensures access to Codec
+func (schema *Schema) Codec() *goavro.Codec {
+	return schema.codec
+}
+
+func cacheKey(subject string, version string) string {
+	return fmt.Sprintf("%s-%s", subject, version)
+}
+
+func getConcreteSubject(subject string, isKey bool) string {
+	if isKey {
+		subject = fmt.Sprintf("%s-key", subject)
+	} else {
+		subject = fmt.Sprintf("%s-value", subject)
+	}
+	return subject
 }
 
 func createError(resp *http.Response) error {
