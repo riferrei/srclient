@@ -56,28 +56,28 @@ func main() {
 
 	topic := "myTopic"
 
-	// Create the producer as you would normally do
+	// 1) Create the producer as you would normally do using Confluent's Go client
 	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "localhost"})
 	if err != nil {
 		panic(err)
 	}
 	defer p.Close()
 
-	// Delivery report handler for produced messages
 	go func() {
-		for e := range p.Events() {
-			switch ev := e.(type) {
+		for event := range producer.Events() {
+			switch ev := event.(type) {
 			case *kafka.Message:
+				message := ev
 				if ev.TopicPartition.Error != nil {
-					fmt.Printf("Delivery failed: %v\n", ev.TopicPartition)
+					fmt.Printf("Error delivering the message '%s'\n", message.Key)
 				} else {
-					fmt.Printf("Delivered message to %v\n", ev.TopicPartition)
+					fmt.Printf("Message '%s' delivered successfully!\n", message.Key)
 				}
 			}
 		}
 	}()
 
-	// Fetch the latest version of the schema, or create the first one
+	// 2) Fetch the latest version of the schema, or create a new one if it is the first
 	schemaRegistryClient := srclient.CreateSchemaRegistryClient("http://localhost:8081")
 	schema, err := schemaRegistryClient.GetLatestSchema(topic, false)
 	if schema == nil {
@@ -90,26 +90,24 @@ func main() {
 	schemaIDBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(schemaIDBytes, uint32(schema.ID))
 
-	// Create the record using the codec from the schema
+	// 3) Serialize the record using the schema provided by the client,
+	// making sure to include the schema id as part of the record.
 	newComplexType := ComplexType{ID: 1, Name: "Gopher"}
 	value, _ := json.Marshal(newComplexType)
 	native, _, _ := schema.Codec.NativeFromTextual(value)
 	valueBytes, _ := schema.Codec.BinaryFromNative(nil, native)
 
-	// Assemble the record
 	var recordValue []byte
 	recordValue = append(recordValue, byte(0))
 	recordValue = append(recordValue, schemaIDBytes...)
 	recordValue = append(recordValue, valueBytes...)
 
-	// Produce the record to the topic
 	key, _ := uuid.NewUUID()
 	p.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{
 			Topic: &topic, Partition: kafka.PartitionAny},
 		Key: []byte(key.String()), Value: recordValue}, nil)
 
-	// Wait for message deliveries before shutting down
 	p.Flush(15 * 1000)
 
 }
@@ -128,6 +126,8 @@ import (
 
 func main() {
 
+	// 1) Create the consumer as you would
+	// normally do using Confluent's Go client
 	c, err := kafka.NewConsumer(&kafka.ConfigMap{
 		"bootstrap.servers": "localhost",
 		"group.id":          "myGroup",
@@ -136,29 +136,27 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
 	c.SubscribeTopics([]string{"myTopic", "^aRegex.*[Tt]opic"}, nil)
+
+	// 2) Create a instance of the client to retrieve the schemas for each message
 	schemaRegistryClient := srclient.CreateSchemaRegistryClient("http://localhost:8081")
 
 	for {
 		msg, err := c.ReadMessage(-1)
 		if err == nil {
-			// Retrieve the schema id from the record value
 			schemaID := binary.BigEndian.Uint32(msg.Value[1:5])
-			// Load the schema from Schema Registry and create
-			// a codec from it. Use it later to deserialize the
-			// the record value.
+			// 3) Recover the schema id from the message and use the
+			// client to retrieve the schema from Schema Registry.
+			// Then use it to deserialize the record accordingly.
 			schema, err := schemaRegistryClient.GetSchema(int(schemaID))
 			if err != nil {
-				panic(fmt.Sprintf("Error getting the schema associated with the ID '%d' %s", schemaID, err))
+				panic(fmt.Sprintf("Error getting the schema with id '%d' %s", schemaID, err))
 			}
-			// Deserialize the record value using the codec
 			native, _, _ := schema.Codec.NativeFromBinary(msg.Value[5:])
 			value, _ := schema.Codec.TextualFromNative(nil, native)
-			// Print the record value
-			fmt.Printf("Message on %s: %s\n", msg.TopicPartition, string(value))
+			fmt.Printf("Here is the message %s\n", string(value))
 		} else {
-			fmt.Printf("Consumer error: %v (%v)\n", err, msg)
+			fmt.Printf("Error consuming the message: %v (%v)\n", err, msg)
 		}
 	}
 
