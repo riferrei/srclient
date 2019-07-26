@@ -111,7 +111,7 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 		Schema: schemaResp.Schema,
 		Codec:  codec,
 	}
-	if client.cachingEnabled && err == nil {
+	if client.cachingEnabled {
 		client.idSchemaCacheLock.Lock()
 		client.idSchemaCache[schemaID] = schema
 		client.idSchemaCacheLock.Unlock()
@@ -205,7 +205,7 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string, 
 		Schema: schema,
 		Codec:  codec,
 	}
-	if client.cachingEnabled && err == nil {
+	if client.cachingEnabled {
 		client.subjectSchemaCacheLock.Lock()
 		client.subjectSchemaCache[subject] = newSchema
 		client.subjectSchemaCacheLock.Unlock()
@@ -279,7 +279,7 @@ func (client *SchemaRegistryClient) getVersion(subject string,
 		Schema: schemaResp.Schema,
 		Codec:  codec,
 	}
-	if client.cachingEnabled && err == nil {
+	if client.cachingEnabled {
 		client.subjectSchemaCacheLock.Lock()
 		client.subjectSchemaCache[subject] = schema
 		client.subjectSchemaCacheLock.Unlock()
