@@ -25,7 +25,6 @@ type SchemaRegistryClient struct {
 	httpClient             *http.Client
 	cachingEnabled         bool
 	codecCreationEnabled   bool
-	genericLock            sync.RWMutex
 	idSchemaCache          map[int]*Schema
 	idSchemaCacheLock      sync.RWMutex
 	subjectSchemaCache     map[string]*Schema
