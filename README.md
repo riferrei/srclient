@@ -169,7 +169,7 @@ Both examples have been created using [Confluent's Golang for Apache Kafka<sup>T
 
 Confluent Cloud
 -------------------
-To use this client with [Confluent Cloud](https://www.confluent.io/confluent-cloud/), you are going to need the endpoint of your managed Schema Registry and a API Key/Secret. Both can be easily retrieved from the Confluent Cloud UI once you select an environment:
+To use this client with [Confluent Cloud](https://www.confluent.io/confluent-cloud/), you are going to need the endpoint of your managed Schema Registry and an API Key/Secret. Both can be easily retrieved from the Confluent Cloud UI once you select an environment:
 
 <img align="center" src="images/Locating_Managed_Schema_Registry.png">
 
