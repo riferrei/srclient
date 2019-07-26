@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -24,21 +25,21 @@ type SchemaRegistryClient struct {
 	httpClient             *http.Client
 	cachingEnabled         bool
 	codecCreationEnabled   bool
+	genericLock            sync.RWMutex
 	idSchemaCache          map[int]*Schema
 	idSchemaCacheLock      sync.RWMutex
 	subjectSchemaCache     map[string]*Schema
 	subjectSchemaCacheLock sync.RWMutex
 }
 
-// Schema is a data structure that holds the
-// ID from a schema (the ID that Schema Registry
-// uses) and a codec created from the textual
-// representation of the schema associated with
-// the ID.
+// Schema is a data structure that holds
+// all the relevant information about a
+// schema in Schema Registry.
 type Schema struct {
-	ID     int
-	Schema string
-	Codec  *goavro.Codec
+	ID      int
+	Schema  string
+	Version int
+	Codec   *goavro.Codec
 }
 
 type credentials struct {
@@ -65,7 +66,9 @@ const (
 )
 
 // CreateSchemaRegistryClient creates a client that allows
-// applications to interact with Schema Registry over HTTP.
+// interactions with Schema Registry over HTTP. Applications
+// using this client can retrieve data about schemas, which
+// in turn can be used to serialize and deserialize records.
 func CreateSchemaRegistryClient(schemaRegistryURL string) *SchemaRegistryClient {
 	return &SchemaRegistryClient{schemaRegistryURL: schemaRegistryURL,
 		httpClient:     &http.Client{Timeout: 5 * time.Second},
@@ -74,11 +77,7 @@ func CreateSchemaRegistryClient(schemaRegistryURL string) *SchemaRegistryClient 
 		subjectSchemaCache: make(map[string]*Schema)}
 }
 
-// GetSchema retrieves a concrete schema that applications
-// can use to serialize and deserialize records. The schema
-// contains the ID that uniquely identifies that schema, as
-// well as a codec created from the textual representation
-// of the schema associated with the ID.
+// GetSchema gets the schema associated with the given id.
 func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 
 	if client.cachingEnabled {
@@ -94,6 +93,7 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	var schemaResp = new(schemaResponse)
 	err = json.Unmarshal(resp, &schemaResp)
 	if err != nil {
@@ -111,32 +111,37 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 		Schema: schemaResp.Schema,
 		Codec:  codec,
 	}
+
 	if client.cachingEnabled {
 		client.idSchemaCacheLock.Lock()
 		client.idSchemaCache[schemaID] = schema
 		client.idSchemaCacheLock.Unlock()
 	}
+
 	return schema, nil
-
 }
 
-// GetLatestSchema retrieves a concrete schema that applications
-// can use to serialize and deserialize records. The schema is
-// in fact the latest version of the given subject. The schema
-// contains the ID that uniquely identifies that schema, as
-// well as a codec created from the textual representation
-// of the schema associated with the ID.
+// GetLatestSchema gets the schema associated with the given subject.
+// The schema returned contains the last version for that subject.
 func (client *SchemaRegistryClient) GetLatestSchema(subject string, isKey bool) (*Schema, error) {
-	return client.getVersion(subject, "latest", isKey)
+
+	// In order to ensure consistency, we need
+	// to temporarily disable caching to force
+	// the retrieval of the latest release from
+	// Schema Registry.
+	cachingEnabled := client.cachingEnabled
+	client.CachingEnabled(false)
+	schema, err := client.getVersion(subject, "latest", isKey)
+	client.CachingEnabled(cachingEnabled)
+
+	return schema, err
 }
 
-// GetSchemaVersions returns a list of versions of a given
-// subject. This allows applications to eventually return
-// the concrete schema for a given version.
+// GetSchemaVersions returns a list of versions from a given subject.
 func (client *SchemaRegistryClient) GetSchemaVersions(subject string, isKey bool) ([]int, error) {
 
-	subject = getConcreteSubject(subject, isKey)
-	resp, err := client.httpRequest("GET", fmt.Sprintf(subjectVersions, subject), nil)
+	concreteSubject := getConcreteSubject(subject, isKey)
+	resp, err := client.httpRequest("GET", fmt.Sprintf(subjectVersions, concreteSubject), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -146,35 +151,22 @@ func (client *SchemaRegistryClient) GetSchemaVersions(subject string, isKey bool
 	if err != nil {
 		return nil, err
 	}
+
 	return versions, nil
-
 }
 
-// GetSchemaByVersion retrieves a concrete schema that applications
-// can use to serialize and deserialize records. The schema is
-// based on the version provided for the given subject. The schema
-// contains the ID that uniquely identifies that schema, as
-// well as a codec created from the textual representation
-// of the schema associated with the ID.
+// GetSchemaByVersion gets the schema associated with the given subject.
+// The schema returned contains the version specified as a parameter.
 func (client *SchemaRegistryClient) GetSchemaByVersion(subject string, version int, isKey bool) (*Schema, error) {
-	return client.getVersion(subject, string(version), isKey)
+	return client.getVersion(subject, strconv.Itoa(version), isKey)
 }
 
-// CreateSchema creates a new schema in Schema Registry and
-// associates this schema with the subject provided. It returns
-// a the new schema that contains the ID that uniquely identifies
-// that schema, as well as a codec created from the textual
-// representation of the schema associated with the ID.
+// CreateSchema creates a new schema in Schema Registry and associates
+// with the subject provided. It returns the newly created schema with
+// all its associated information.
 func (client *SchemaRegistryClient) CreateSchema(subject string, schema string, isKey bool) (*Schema, error) {
 
-	if client.cachingEnabled {
-		client.subjectSchemaCacheLock.RLock()
-		cachedSchema := client.subjectSchemaCache[subject]
-		client.subjectSchemaCacheLock.RUnlock()
-		if cachedSchema != nil {
-			return cachedSchema, nil
-		}
-	}
+	concreteSubject := getConcreteSubject(subject, isKey)
 
 	schemaReq := schemaRequest{Schema: schema}
 	schemaBytes, err := json.Marshal(schemaReq)
@@ -182,8 +174,7 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string, 
 		return nil, err
 	}
 	payload := bytes.NewBuffer(schemaBytes)
-	subject = getConcreteSubject(subject, isKey)
-	resp, err := client.httpRequest("POST", fmt.Sprintf(subjectVersions, subject), payload)
+	resp, err := client.httpRequest("POST", fmt.Sprintf(subjectVersions, concreteSubject), payload)
 	if err != nil {
 		return nil, err
 	}
@@ -193,30 +184,39 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string, 
 	if err != nil {
 		return nil, err
 	}
-	var codec *goavro.Codec
-	if client.codecCreationEnabled {
-		codec, err = goavro.NewCodec(schema)
-		if err != nil {
-			return nil, err
-		}
+	// Conceptually, the schema returned below will be the
+	// exactly same one created above. However, since Schema
+	// Registry can have multiple concurrent clients writing
+	// schemas, this may produce an incorrect result. Thus,
+	// this logic strongly relies on the idempotent guarantees
+	// from Schema Registry, as well as in the best practice
+	// that schemas don't change very often.
+	newSchema, err := client.GetLatestSchema(subject, isKey)
+	if err != nil {
+		return nil, err
 	}
-	var newSchema = &Schema{
-		ID:     schemaResp.ID,
-		Schema: schema,
-		Codec:  codec,
-	}
-	if client.cachingEnabled {
-		client.subjectSchemaCacheLock.Lock()
-		client.subjectSchemaCache[subject] = newSchema
-		client.subjectSchemaCacheLock.Unlock()
-	}
-	return newSchema, nil
 
+	if client.cachingEnabled {
+
+		// Update the subject-2-schema cache
+		client.subjectSchemaCacheLock.Lock()
+		cacheKey := cacheKey(concreteSubject, strconv.Itoa(newSchema.Version))
+		client.subjectSchemaCache[cacheKey] = newSchema
+		client.subjectSchemaCacheLock.Unlock()
+
+		// Update the id-2-schema cache
+		client.idSchemaCacheLock.Lock()
+		client.idSchemaCache[newSchema.ID] = newSchema
+		client.idSchemaCacheLock.Unlock()
+
+	}
+
+	return newSchema, nil
 }
 
 // SetCredentials allows users to set credentials to be
 // used with Schema Registry, for scenarios when Schema
-// Registry had authentication enabled in the service.
+// Registry has authentication enabled.
 func (client *SchemaRegistryClient) SetCredentials(username string, password string) {
 	if len(username) > 0 && len(password) > 0 {
 		credentials := credentials{username, password}
@@ -226,20 +226,20 @@ func (client *SchemaRegistryClient) SetCredentials(username string, password str
 
 // SetTimeout allows the client to be reconfigured about
 // how much time internal HTTP requests will take until
-// they timeout. It defaults to five seconds, FYI.
+// they timeout. FYI, It defaults to five seconds.
 func (client *SchemaRegistryClient) SetTimeout(timeout time.Duration) {
 	client.httpClient.Timeout = timeout
 }
 
-// CachingEnabled allows application to cache any values
-// that have been returned via this client, which may
-// speed up the performance if these values never changes.
+// CachingEnabled allows the client to cache any values
+// that have been returned, which may speed up performance
+// if these values rarely changes.
 func (client *SchemaRegistryClient) CachingEnabled(value bool) {
 	client.cachingEnabled = value
 }
 
 // CodecCreationEnabled allows the application to enable/disable
-// the automatic creation of codec's every time a schema is returned.
+// the automatic creation of codec's when schemas are returned.
 func (client *SchemaRegistryClient) CodecCreationEnabled(value bool) {
 	client.codecCreationEnabled = value
 }
@@ -247,17 +247,19 @@ func (client *SchemaRegistryClient) CodecCreationEnabled(value bool) {
 func (client *SchemaRegistryClient) getVersion(subject string,
 	version string, isKey bool) (*Schema, error) {
 
+	concreteSubject := getConcreteSubject(subject, isKey)
+
 	if client.cachingEnabled {
 		client.subjectSchemaCacheLock.RLock()
-		cachedResult := client.subjectSchemaCache[subject]
+		cacheKey := cacheKey(concreteSubject, version)
+		cachedResult := client.subjectSchemaCache[cacheKey]
 		client.subjectSchemaCacheLock.RUnlock()
 		if cachedResult != nil {
 			return cachedResult, nil
 		}
 	}
 
-	subject = getConcreteSubject(subject, isKey)
-	resp, err := client.httpRequest("GET", fmt.Sprintf(subjectByVersion, subject, version), nil)
+	resp, err := client.httpRequest("GET", fmt.Sprintf(subjectByVersion, concreteSubject, version), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -275,17 +277,32 @@ func (client *SchemaRegistryClient) getVersion(subject string,
 		}
 	}
 	var schema = &Schema{
-		ID:     schemaResp.ID,
-		Schema: schemaResp.Schema,
-		Codec:  codec,
+		ID:      schemaResp.ID,
+		Schema:  schemaResp.Schema,
+		Version: schemaResp.Version,
+		Codec:   codec,
 	}
-	if client.cachingEnabled {
-		client.subjectSchemaCacheLock.Lock()
-		client.subjectSchemaCache[subject] = schema
-		client.subjectSchemaCacheLock.Unlock()
-	}
-	return schema, nil
 
+	if client.cachingEnabled {
+
+		// Update the subject-2-schema cache
+		client.subjectSchemaCacheLock.Lock()
+		cacheKey := cacheKey(concreteSubject, version)
+		client.subjectSchemaCache[cacheKey] = schema
+		client.subjectSchemaCacheLock.Unlock()
+
+		// Update the id-2-schema cache
+		client.idSchemaCacheLock.Lock()
+		client.idSchemaCache[schema.ID] = schema
+		client.idSchemaCacheLock.Unlock()
+
+	}
+
+	return schema, nil
+}
+
+func cacheKey(subject string, version string) string {
+	return fmt.Sprintf("%s-%s", subject, version)
 }
 
 func getConcreteSubject(subject string, isKey bool) string {
@@ -308,7 +325,6 @@ func (client *SchemaRegistryClient) httpRequest(method, uri string, payload io.R
 		req.SetBasicAuth(client.credentials.username, client.credentials.password)
 	}
 	req.Header.Set("Content-Type", contentType)
-
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -320,8 +336,8 @@ func (client *SchemaRegistryClient) httpRequest(method, uri string, payload io.R
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return nil, createError(resp)
 	}
-	return ioutil.ReadAll(resp.Body)
 
+	return ioutil.ReadAll(resp.Body)
 }
 
 func createError(resp *http.Response) error {
