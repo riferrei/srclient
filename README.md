@@ -3,13 +3,13 @@ Golang Client for Confluent's Schema Registry
 
 <img align="left" width="150" height="150" src="images/Gopher_Apache_Kafka_v1.png">
 
-**srclient** is a Golang client for [Confluent Schema Registry](https://www.confluent.io/confluent-schema-registry/), a software that provides a RESTful interface for developers to define standard schemas for their events, share them across the organization and safely evolve them in a way that is backward compatible and future proof. Using this client allows developers to build Golang applications that need to write and read records to/from [Apache Kafka](https://kafka.apache.org/) can use Schema Registry as their single-source-of-truth for schemas, while still allowing producers and consumers to be decoupled from each other. Producers interact with Schema Registry to fetch schemas and use it to serialize records, and consumers can use it as well to fetch the same schema and use it to deserialize records. Moreover, Schema Registry provides schema enforcement when schemas are based on [Avro](https://avro.apache.org/). You can read more about the benefits of using Schema Registry [here](https://www.confluent.io/blog/schemas-contracts-compatibility).
+**srclient** is a Golang client for [Confluent Schema Registry](https://www.confluent.io/confluent-schema-registry/), a software that provides a RESTful interface for developers to define standard schemas for their events, share them across the organization and safely evolve them in a way that is backward compatible and future proof. Using this client allows developers to build Golang programs that write and read records to/from [Apache Kafka](https://kafka.apache.org/) using [Avro](https://avro.apache.org/) and having all the schemas hosted in Schema Registry, which will act as the single-source-of-truth for schemas, while still allowing producers and consumers to be decoupled from each other. Using this architecture, producers programs interact with Schema Registry to retrieve schemas and use it to serialize records, and then consumer programs can retrieve the same schema from Schema Registry to deserialize the records. You can read more about the benefits of using Schema Registry [here](https://www.confluent.io/blog/schemas-contracts-compatibility).
 
 Features:
 
-- **Simple to Use** - This client provides a very high-level abstraction over the operations that developers writing applications for Apache Kafka typically need. Thus, it will feel natural for them using the functions that this client provides. Moreover, developers don't need to handle low-level HTTP details to communicate with Schema Registry.
+- **Simple to Use** - This client provides a very high-level abstraction over the operations that developers writing programs for Apache Kafka typically need. Thus, it will feel natural for them using the functions that this client provides. Moreover, developers don't need to handle low-level HTTP details to communicate with Schema Registry.
 
-- **Performance** - This client provides caching capabilities. This means that any data retrieved from Schema Registry can be cached locally to improve the performance of subsequent requests. This allows applications that are not co-located with Schema Registry to reduce the latency necessary on each request. This functionality can be disabled programmatically.
+- **Performance** - This client provides caching capabilities. This means that any data retrieved from Schema Registry can be cached locally to improve the performance of subsequent requests. This allows programs that are not co-located with Schema Registry to reduce the latency necessary on each request. This functionality can be disabled programmatically.
 
 - **Confluent Cloud** - Go developers using [Confluent Cloud](https://www.confluent.io/confluent-cloud/) can use this client to interact with the fully managed Schema Registry, which provides important features like schema enforcement that enable teams to reduce deployment issues by governing the schema changes as they evolve.
 
@@ -166,6 +166,23 @@ func main() {
 ```
 
 Both examples have been created using [Confluent's Golang for Apache Kafka<sup>TM</sup>](https://github.com/confluentinc/confluent-kafka-go).
+
+Confluent Cloud
+-------------------
+To use this client with [Confluent Cloud](https://www.confluent.io/confluent-cloud/), you are going to need the endpoint of your managed Schema Registry and a API Key/Secret. Both can be easily retrieved from the Confluent Cloud UI once you select an environment:
+
+<img align="center" src="images/Locating_Managed_Schema_Registry.png">
+
+Please note that you need to have at least one Apache Kafka cluster created to be able to access your managed Schema Registry. Once you select the Schema Registry option, you can retrieve the endpoint and create a new API/Secret:
+
+<img align="center" src="images/Getting_Endpoint_and_APIKeys.png">
+
+Finally, your Go program need to provide this information to the client:
+
+```golang
+schemaRegistryClient := srclient.CreateSchemaRegistryClient("https://endpoint.confluent.cloud")
+schemaRegistryClient.SetCredentials("apiKey", "apiSecret")
+```
 
 Contributing
 ------------
