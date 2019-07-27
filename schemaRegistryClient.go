@@ -197,8 +197,9 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string, 
 	if client.cachingEnabled {
 
 		// Update the subject-2-schema cache
+		cacheKey := cacheKey(concreteSubject,
+			strconv.Itoa(newSchema.version))
 		client.subjectSchemaCacheLock.Lock()
-		cacheKey := cacheKey(concreteSubject, strconv.Itoa(newSchema.version))
 		client.subjectSchemaCache[cacheKey] = newSchema
 		client.subjectSchemaCacheLock.Unlock()
 
@@ -248,8 +249,8 @@ func (client *SchemaRegistryClient) getVersion(subject string,
 	concreteSubject := getConcreteSubject(subject, isKey)
 
 	if client.cachingEnabled {
-		client.subjectSchemaCacheLock.RLock()
 		cacheKey := cacheKey(concreteSubject, version)
+		client.subjectSchemaCacheLock.RLock()
 		cachedResult := client.subjectSchemaCache[cacheKey]
 		client.subjectSchemaCacheLock.RUnlock()
 		if cachedResult != nil {
@@ -284,8 +285,8 @@ func (client *SchemaRegistryClient) getVersion(subject string,
 	if client.cachingEnabled {
 
 		// Update the subject-2-schema cache
-		client.subjectSchemaCacheLock.Lock()
 		cacheKey := cacheKey(concreteSubject, version)
+		client.subjectSchemaCacheLock.Lock()
 		client.subjectSchemaCache[cacheKey] = schema
 		client.subjectSchemaCacheLock.Unlock()
 
