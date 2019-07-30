@@ -185,4 +185,3 @@ schemaRegistryClient.SetCredentials("apiKey", "apiSecret")
 Acknowledgements
 ------------
 - Apache, Apache Kafka, Kafka, and associated open source project names are trademarks of the [Apache Software Foundation](https://www.apache.org/).
-- The [Go Gopher](https://blog.golang.org/gopher), is an artistic creation of [Renee French](http://reneefrench.blogspot.com/).
