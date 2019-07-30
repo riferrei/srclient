@@ -1,8 +1,6 @@
 Golang Client for Schema Registry
 =====================================================
 
-<img align="left" width="150" height="150" src="images/Gopher_Apache_Kafka.png">
-
 **srclient** is a Golang client for [Schema Registry](https://www.confluent.io/confluent-schema-registry/), a software that provides a RESTful interface for developers to define standard schemas for their events, share them across the organization and safely evolve them in a way that is backward compatible and future proof. Using this client allows developers to build Golang programs that write and read records to/from [Apache Kafka](https://kafka.apache.org/) using [Avro](https://avro.apache.org/) and having all the schemas hosted in Schema Registry, which will act as the single-source-of-truth for schemas, while still allowing producers and consumers to be decoupled from each other. Using this architecture, producers programs interact with Schema Registry to retrieve schemas and use it to serialize records, and then consumer programs can retrieve the same schema from Schema Registry to deserialize the records. You can read more about the benefits of using Schema Registry [here](https://www.confluent.io/blog/schemas-contracts-compatibility).
 
 Features:
