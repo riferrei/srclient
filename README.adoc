@@ -28,18 +28,22 @@ If you are using generated code based on Avro compilers, you can disable the cod
 
 == Installation
 
+Default install:
+
+This client is a Go module, therefore you can have it simply by adding the following import to your code:
+
+[source,golang]
+----
+import "github.com/riferrei/srclient"
+----
+
+...and then running a build to have this client added to your go.mod file as a dependency.
+
 Manual install:
 
 [source,bash]
 ----
 go get -u github.com/riferrei/srclient
-----
-
-Golang import:
-
-[source,golang]
-----
-import "github.com/riferrei/srclient"
 ----
 
 == Examples
