@@ -6,8 +6,6 @@ Using this client allows developers to build Golang programs that write and read
 Using this architecture, producers programs interact with Schema Registry to retrieve schemas and use it to serialize records, and then consumer programs can retrieve the same schema from Schema Registry to deserialize the records.
 You can read more about the benefits of using Schema Registry https://www.confluent.io/blog/schemas-contracts-compatibility[here].
 
-toc
-
 == Features
 
 * *Simple to Use* - This client provides a very high-level abstraction over the operations that developers writing programs for Apache Kafka typically need.
