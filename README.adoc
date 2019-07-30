@@ -37,7 +37,7 @@ This client is a Go module, therefore you can have it simply by adding the follo
 import "github.com/riferrei/srclient"
 ----
 
-...and then running a build to have this client added to your go.mod file as a dependency.
+Then run a build to have this client automatically added to your go.mod file as a dependency.
 
 Manual install:
 
