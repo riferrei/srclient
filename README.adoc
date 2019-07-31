@@ -28,7 +28,7 @@ If you are using generated code based on Avro compilers, you can disable the cod
 
 == Installation
 
-Default install:
+Module install:
 
 This client is a Go module, therefore you can have it simply by adding the following import to your code:
 
