@@ -97,7 +97,7 @@ func main() {
 	schema, err := schemaRegistryClient.GetLatestSchema(topic, false)
 	if schema == nil {
 		schemaBytes, _ := ioutil.ReadFile("complexType.avsc")
-		schema, err = schemaRegistryClient.CreateSchema(topic, string(schemaBytes), false)
+		schema, err = schemaRegistryClient.CreateSchema(topic, string(schemaBytes), "AVRO", false)
 		if err != nil {
 			panic(fmt.Sprintf("Error creating the schema %s", err))
 		}
