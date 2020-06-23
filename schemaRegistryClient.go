@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strconv"
 	"sync"
 	"time"
@@ -46,7 +47,8 @@ type credentials struct {
 }
 
 type schemaRequest struct {
-	Schema string `json:"schema"`
+	Schema     string `json:"schema"`
+	SchemaType string `json:"schemaType"`
 }
 
 type schemaResponse struct {
@@ -162,11 +164,14 @@ func (client *SchemaRegistryClient) GetSchemaByVersion(subject string, version i
 // CreateSchema creates a new schema in Schema Registry and associates
 // with the subject provided. It returns the newly created schema with
 // all its associated information.
-func (client *SchemaRegistryClient) CreateSchema(subject string, schema string, isKey bool) (*Schema, error) {
+func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
+	schemaType string, isKey bool) (*Schema, error) {
 
 	concreteSubject := getConcreteSubject(subject, isKey)
 
-	schemaReq := schemaRequest{Schema: schema}
+	compiledRegex := regexp.MustCompile(`\r?\n`)
+	schema = compiledRegex.ReplaceAllString(schema, " ")
+	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType}
 	schemaBytes, err := json.Marshal(schemaReq)
 	if err != nil {
 		return nil, err
