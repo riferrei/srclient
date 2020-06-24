@@ -180,13 +180,8 @@ Both examples have been created using https://github.com/confluentinc/confluent-
 
 == Confluent Cloud
 
-To use this client with https://www.confluent.io/confluent-cloud/[Confluent Cloud], you are going to need the endpoint of your managed Schema Registry and an API Key/Secret.
+To use this client with https://www.confluent.io/confluent-cloud/[Confluent Cloud] you will need the endpoint of your managed Schema Registry and an API Key/Secret.
 Both can be easily retrieved from the Confluent Cloud UI once you select an environment:
-
-image::Locating_Managed_Schema_Registry.png[]
-
-Please note that you need to have at least one Apache Kafka cluster created to be able to access your managed Schema Registry.
-Once you select the Schema Registry option, you can retrieve the endpoint and create a new API/Secret:
 
 image::Getting_Endpoint_and_APIKeys.png[]
 
@@ -194,7 +189,7 @@ Finally, your Go program need to provide this information to the client:
 
 [source,golang]
 ----
-schemaRegistryClient := srclient.CreateSchemaRegistryClient("https://endpoint.confluent.cloud")
+schemaRegistryClient := srclient.CreateSchemaRegistryClient("https://prefix.us-east-2.aws.confluent.cloud")
 schemaRegistryClient.SetCredentials("apiKey", "apiSecret")
 ----
 
