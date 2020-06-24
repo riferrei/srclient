@@ -1,4 +1,4 @@
-= Golang Client for Schema Registry
+= Schema Registry Client for Go
 :toc:
 
 :imagesdir: images/
