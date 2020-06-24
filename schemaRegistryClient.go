@@ -15,11 +15,26 @@ import (
 	"github.com/linkedin/goavro/v2"
 )
 
+// ISchemaRegistryClient provides the
+// definition of the operations that
+// this Schema Registry client provides.
+type ISchemaRegistryClient interface {
+	GetSchema(schemaID int) (*Schema, error)
+	GetLatestSchema(subject string, isKey bool) (*Schema, error)
+	GetSchemaVersions(subject string, isKey bool) ([]int, error)
+	GetSchemaByVersion(subject string, version int, isKey bool) (*Schema, error)
+	CreateSchema(subject string, schema string, schemaType string, isKey bool) (*Schema, error)
+	SetCredentials(username string, password string)
+	SetTimeout(timeout time.Duration)
+	CachingEnabled(value bool)
+	CodecCreationEnabled(value bool)
+}
+
 // SchemaRegistryClient allows interactions with
 // Schema Registry over HTTP. Applications using
 // this client can retrieve data about schemas,
 // which in turn can be used to serialize and
-// deserialize records.
+// deserialize data.
 type SchemaRegistryClient struct {
 	schemaRegistryURL      string
 	credentials            *credentials
