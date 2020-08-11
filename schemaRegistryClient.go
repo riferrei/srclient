@@ -47,6 +47,18 @@ type SchemaRegistryClient struct {
 	subjectSchemaCacheLock sync.RWMutex
 }
 
+type SchemaType string
+
+const (
+	Protobuf SchemaType = "PROTOBUF"
+	Avro     SchemaType = "AVRO"
+	Json     SchemaType = "JSON"
+)
+
+func (s SchemaType) String() string {
+	return string(s)
+}
+
 // Schema is a data structure that holds all
 // the relevant information about schemas.
 type Schema struct {
@@ -180,13 +192,20 @@ func (client *SchemaRegistryClient) GetSchemaByVersion(subject string, version i
 // with the subject provided. It returns the newly created schema with
 // all its associated information.
 func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
-	schemaType string, isKey bool) (*Schema, error) {
+	schemaType SchemaType, isKey bool) (*Schema, error) {
 
 	concreteSubject := getConcreteSubject(subject, isKey)
 
-	compiledRegex := regexp.MustCompile(`\r?\n`)
-	schema = compiledRegex.ReplaceAllString(schema, " ")
-	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType}
+	switch schemaType {
+	case Avro, Json:
+		compiledRegex := regexp.MustCompile(`\r?\n`)
+		schema = compiledRegex.ReplaceAllString(schema, " ")
+	case Protobuf:
+		break
+	default:
+		return nil, fmt.Errorf("invalid schema type. valid values are Avro, Json, or Protobuf")
+	}
+	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType.String()}
 	schemaBytes, err := json.Marshal(schemaReq)
 	if err != nil {
 		return nil, err
