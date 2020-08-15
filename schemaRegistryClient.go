@@ -23,7 +23,7 @@ type ISchemaRegistryClient interface {
 	GetLatestSchema(subject string, isKey bool) (*Schema, error)
 	GetSchemaVersions(subject string, isKey bool) ([]int, error)
 	GetSchemaByVersion(subject string, version int, isKey bool) (*Schema, error)
-	CreateSchema(subject string, schema string, schemaType string, isKey bool) (*Schema, error)
+	CreateSchema(subject string, schema string, schemaType SchemaType, isKey bool) (*Schema, error)
 	SetCredentials(username string, password string)
 	SetTimeout(timeout time.Duration)
 	CachingEnabled(value bool)
