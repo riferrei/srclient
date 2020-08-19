@@ -75,7 +75,6 @@ type credentials struct {
 
 type schemaRequest struct {
 	Schema     string `json:"schema"`
-	SchemaType string `json:"schemaType"`
 }
 
 type schemaResponse struct {
@@ -205,7 +204,7 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 	default:
 		return nil, fmt.Errorf("invalid schema type. valid values are Avro, Json, or Protobuf")
 	}
-	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType.String()}
+	schemaReq := schemaRequest{Schema: schema}
 	schemaBytes, err := json.Marshal(schemaReq)
 	if err != nil {
 		return nil, err
