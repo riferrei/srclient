@@ -84,6 +84,7 @@ type credentials struct {
 
 type schemaRequest struct {
 	Schema     string      `json:"schema"`
+	SchemaType string      `json:"schemaType"`
 	References []Reference `json:"references"`
 }
 
@@ -219,7 +220,7 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 		references = make([]Reference, 0)
 	}
 
-	schemaReq := schemaRequest{Schema: schema, References: references}
+	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType.String(), References: references}
 	schemaBytes, err := json.Marshal(schemaReq)
 	if err != nil {
 		return nil, err
