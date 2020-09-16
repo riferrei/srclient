@@ -32,6 +32,7 @@ func TestSchemaRegistryClient_CreateSchemaWithoutReferences(t *testing.T) {
 		case "/subjects/test1-value/versions":
 			requestPayload := schemaRequest{
 				Schema:     "test2",
+				SchemaType: Protobuf.String(),
 				References: []Reference{},
 			}
 			expected, _ := json.Marshal(requestPayload)
@@ -73,7 +74,8 @@ func TestSchemaRegistryClient_CreateSchemaWithReferences(t *testing.T) {
 		switch req.URL.String() {
 		case "/subjects/test1-value/versions":
 			requestPayload := schemaRequest{
-				Schema: "test2",
+				Schema:     "test2",
+				SchemaType: Protobuf.String(),
 				References: []Reference{
 					{Name: "test3", Subject: "test4", Version: 1},
 				},
