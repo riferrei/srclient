@@ -38,7 +38,7 @@ type ISchemaRegistryClient interface {
 type SchemaRegistryClient struct {
 	schemaRegistryURL      string
 	credentials            *credentials
-	httpClient             *http.Client
+	HttpClient             *http.Client
 	cachingEnabled         bool
 	codecCreationEnabled   bool
 	idSchemaCache          map[int]*Schema
@@ -108,7 +108,7 @@ const (
 // in turn can be used to serialize and deserialize records.
 func CreateSchemaRegistryClient(schemaRegistryURL string) *SchemaRegistryClient {
 	return &SchemaRegistryClient{schemaRegistryURL: schemaRegistryURL,
-		httpClient:     &http.Client{Timeout: 5 * time.Second},
+		HttpClient:     &http.Client{Timeout: 5 * time.Second},
 		cachingEnabled: true, codecCreationEnabled: true,
 		idSchemaCache:      make(map[int]*Schema),
 		subjectSchemaCache: make(map[string]*Schema)}
@@ -281,7 +281,7 @@ func (client *SchemaRegistryClient) SetCredentials(username string, password str
 // how much time internal HTTP requests will take until
 // they timeout. FYI, It defaults to five seconds.
 func (client *SchemaRegistryClient) SetTimeout(timeout time.Duration) {
-	client.httpClient.Timeout = timeout
+	client.HttpClient.Timeout = timeout
 }
 
 // CachingEnabled allows the client to cache any values
@@ -365,7 +365,7 @@ func (client *SchemaRegistryClient) httpRequest(method, uri string, payload io.R
 		req.SetBasicAuth(client.credentials.username, client.credentials.password)
 	}
 	req.Header.Set("Content-Type", contentType)
-	resp, err := client.httpClient.Do(req)
+	resp, err := client.HttpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
