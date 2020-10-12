@@ -173,11 +173,11 @@ func (mck MockSchemaRegistryClient) SetTimeout(timeout time.Duration) {
 	// Nothing because there is no timeout for cache
 }
 
-func (mck MockSchemaRegistryClient) CachingEnabled(value bool) {
+func (mck MockSchemaRegistryClient) SetCachingEnabled(value bool) {
 	// Nothing because caching is always enabled, duh
 }
 
-func (mck MockSchemaRegistryClient) CodecCreationEnabled(value bool) {
+func (mck MockSchemaRegistryClient) SetCodecCreationEnabled(value bool) {
 	// Nothing because codecs do not matter in the inMem storage of schemas
 }
 
