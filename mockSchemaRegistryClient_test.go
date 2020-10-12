@@ -3,6 +3,7 @@ package srclient
 import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"sort"
 	"testing"
 )
 
@@ -80,7 +81,7 @@ func TestMockSchemaRegistryClient_CreateSchema(t *testing.T) {
 
 	// Test registering already registered schema
 	_, err := srClient.CreateSchema("test1", schema, Avro, true)
-	assert.EqualError(t, err, "POST \"mock://testingUrl/subjects/test1-key/versions\": Schema already registered with id 2")
+	assert.EqualError(t, err, "POST mock://testingUrl/subjects/test1-key/versions: Schema already registered with id 2")
 
 }
 
@@ -96,7 +97,7 @@ func TestMockSchemaRegistryClient_GetLatestSchema(t *testing.T) {
 }
 
 func TestMockSchemaRegistryClient_GetSchemaVersions(t *testing.T) {
-	versions := srClient.GetSchemaVersions("test1", true)
+	versions, _ := srClient.GetSchemaVersions("test1", true)
 	assert.Equal(t, 2, len(versions))
 
 }
@@ -106,6 +107,12 @@ func TestMockSchemaRegistryClient_GetSchemaByVersion(t *testing.T) {
 	oldVersion, _ := srClient.GetSchemaByVersion("test1",1,false)
 	assert.Equal(t, schema, oldVersion.schema)
 
+}
+
+func TestMockSchemaRegistryClient_GetSubjects(t *testing.T) {
+	allSubjects, _ := srClient.GetSubjects()
+	sort.Strings(allSubjects)
+	assert.Equal(t, allSubjects, []string{"test1-key", "test1-value"})
 }
 
 

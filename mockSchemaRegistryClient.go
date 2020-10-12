@@ -101,7 +101,10 @@ func (mck MockSchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 
 // Returns the highest ordinal version of a Schema for a given `concrete subject`
 func (mck MockSchemaRegistryClient) GetLatestSchema(subject string, isKey bool) (*Schema, error) {
-	versions := mck.GetSchemaVersions(subject, isKey)
+	versions, getSchemaVersionErr := mck.GetSchemaVersions(subject, isKey)
+	if getSchemaVersionErr != nil {
+		return nil, getSchemaVersionErr
+	}
 
 	latestVersion := versions[len(versions)-1]
 	thisSchema, err := mck.GetSchemaByVersion(subject, latestVersion, isKey)
@@ -150,6 +153,15 @@ func (mck MockSchemaRegistryClient) GetSchemaByVersion(subject string, version i
 	return schema, nil
 }
 
+// Returns all registered subjects
+func (mck MockSchemaRegistryClient) GetSubjects() ([]string, error) {
+	allSubjects := make([]string, 0, len(mck.schemaCache))
+	for subject := range mck.schemaCache {
+		allSubjects = append(allSubjects, subject)
+	}
+	return allSubjects, nil
+}
+
 /*
 The classes below are implemented to accommodate ISchemaRegistryClient; However, they do nothing.
 */
@@ -161,11 +173,11 @@ func (mck MockSchemaRegistryClient) SetTimeout(timeout time.Duration) {
 	// Nothing because there is no timeout for cache
 }
 
-func (mck MockSchemaRegistryClient) CachingEnabled(value bool) {
+func (mck MockSchemaRegistryClient) SetCachingEnabled(value bool) {
 	// Nothing because caching is always enabled, duh
 }
 
-func (mck MockSchemaRegistryClient) CodecCreationEnabled(value bool) {
+func (mck MockSchemaRegistryClient) SetCodecCreationEnabled(value bool) {
 	// Nothing because codecs do not matter in the inMem storage of schemas
 }
 

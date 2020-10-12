@@ -50,7 +50,7 @@ func TestSchemaRegistryClient_CreateSchemaWithoutReferences(t *testing.T) {
 	}))
 
 	srClient := CreateSchemaRegistryClient(server.URL)
-	srClient.CodecCreationEnabled(false)
+	srClient.SetCodecCreationEnabled(false)
 	schema, err := srClient.CreateSchema("test1", "test2", Protobuf, false)
 
 	// Test response
@@ -95,7 +95,7 @@ func TestSchemaRegistryClient_CreateSchemaWithReferences(t *testing.T) {
 	}))
 
 	srClient := CreateSchemaRegistryClient(server.URL)
-	srClient.CodecCreationEnabled(false)
+	srClient.SetCodecCreationEnabled(false)
 	schema, err := srClient.CreateSchema("test1", "test2", Protobuf, false, Reference{Name: "test3", Subject: "test4", Version: 1})
 
 	// Test response
