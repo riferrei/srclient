@@ -150,6 +150,15 @@ func (mck MockSchemaRegistryClient) GetSchemaByVersion(subject string, version i
 	return schema, nil
 }
 
+// Returns all registered subjects
+func (mck MockSchemaRegistryClient) GetSubjects() ([]string, error) {
+	allSubjects := make([]string, 0, len(mck.schemaCache))
+	for subject := range mck.schemaCache {
+		allSubjects = append(allSubjects, subject)
+	}
+	return allSubjects, nil
+}
+
 /*
 The classes below are implemented to accommodate ISchemaRegistryClient; However, they do nothing.
 */
