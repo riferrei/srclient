@@ -101,7 +101,10 @@ func (mck MockSchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 
 // Returns the highest ordinal version of a Schema for a given `concrete subject`
 func (mck MockSchemaRegistryClient) GetLatestSchema(subject string, isKey bool) (*Schema, error) {
-	versions, _ := mck.GetSchemaVersions(subject, isKey)
+	versions, err := mck.GetSchemaVersions(subject, isKey)
+	if err != nil {
+		return nil, err
+	}
 
 	latestVersion := versions[len(versions)-1]
 	thisSchema, err := mck.GetSchemaByVersion(subject, latestVersion, isKey)
