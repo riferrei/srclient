@@ -3,6 +3,7 @@ package srclient
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -171,6 +172,17 @@ func (client *SchemaRegistryClient) GetLatestSchema(subject string, isKey bool) 
 	schema, err := client.getVersion(subject, "latest", isKey)
 	client.CachingEnabled(cachingEnabled)
 
+	// But if caching is enabled and there weren't any errors, latest fetch should be cached
+	// for a possible GetLatestSchemaFromCache call
+	// TODO fix race condition for cachingEnabled
+	if client.cachingEnabled && err == nil {
+		concreteSubject := getConcreteSubject(subject, isKey)
+		cacheKeyWithLatest := cacheKey(concreteSubject, "latest")
+		client.subjectSchemaCacheLock.Lock()
+		client.subjectSchemaCache[cacheKeyWithLatest] = schema
+		client.subjectSchemaCacheLock.Unlock()
+	}
+
 	return schema, err
 }
 
@@ -251,10 +263,12 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 	if client.cachingEnabled {
 
 		// Update the subject-2-schema cache
-		cacheKey := cacheKey(concreteSubject,
+		cacheKeyWithVersion := cacheKey(concreteSubject,
 			strconv.Itoa(newSchema.version))
+		cacheKeyWithLatest := cacheKey(concreteSubject, "latest")
 		client.subjectSchemaCacheLock.Lock()
-		client.subjectSchemaCache[cacheKey] = newSchema
+		client.subjectSchemaCache[cacheKeyWithVersion] = newSchema
+		client.subjectSchemaCache[cacheKeyWithLatest] = newSchema // for GetLatestSchemaFromCache
 		client.subjectSchemaCacheLock.Unlock()
 
 		// Update the id-2-schema cache
@@ -295,6 +309,25 @@ func (client *SchemaRegistryClient) CachingEnabled(value bool) {
 // the automatic creation of codec's when schemas are returned.
 func (client *SchemaRegistryClient) CodecCreationEnabled(value bool) {
 	client.codecCreationEnabled = value
+}
+
+// GetLatestSchemaFromCache is an optimized way to fetch schema by subject if schema won't change
+// returns error if subject not in cache, so to use this function you must have already fetched a schema from subject with GetLatestSchema already
+func (client *SchemaRegistryClient) GetLatestSchemaFromCache(subject string, isKey bool) (*Schema, error) {
+	client.subjectSchemaCacheLock.RLock()
+	defer client.subjectSchemaCacheLock.RUnlock()
+
+	if client.subjectSchemaCache == nil {
+		return nil, errors.New("subject cache is nil")
+	}
+
+	concreteSubject := getConcreteSubject(subject, isKey)
+	cacheKey := cacheKey(concreteSubject, "latest")
+	schema, exists := client.subjectSchemaCache[cacheKey]
+	if !exists {
+		return nil, errors.New("subject cache doesn't have the given subject")
+	}
+	return schema, nil
 }
 
 func (client *SchemaRegistryClient) getVersion(subject string,
@@ -339,9 +372,11 @@ func (client *SchemaRegistryClient) getVersion(subject string,
 	if client.cachingEnabled {
 
 		// Update the subject-2-schema cache
-		cacheKey := cacheKey(concreteSubject, version)
+		cacheKeyWithVersion := cacheKey(concreteSubject, version)
+		cacheKeyWithLatest := cacheKey(concreteSubject, "latest")
 		client.subjectSchemaCacheLock.Lock()
-		client.subjectSchemaCache[cacheKey] = schema
+		client.subjectSchemaCache[cacheKeyWithVersion] = schema
+		client.subjectSchemaCache[cacheKeyWithLatest] = schema // for GetLatestSchemaFromCache
 		client.subjectSchemaCacheLock.Unlock()
 
 		// Update the id-2-schema cache
