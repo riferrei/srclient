@@ -113,10 +113,10 @@ func (mck MockSchemaRegistryClient) GetLatestSchema(subject string, isKey bool) 
 }
 
 // Returns the array of versions this subject has previously registered
-func (mck MockSchemaRegistryClient) GetSchemaVersions(subject string, isKey bool) []int {
+func (mck MockSchemaRegistryClient) GetSchemaVersions(subject string, isKey bool) ([]int, error) {
 	concreteSubject := getConcreteSubject(subject, isKey)
 	versions := mck.allVersions(concreteSubject)
-	return versions
+	return versions, nil
 }
 
 // Returns the given Schema according to the passed in subject and version number
