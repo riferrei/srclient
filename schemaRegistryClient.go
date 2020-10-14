@@ -20,6 +20,7 @@ import (
 // definition of the operations that
 // this Schema Registry client provides.
 type ISchemaRegistryClient interface {
+	GetSubjects() ([]string, error)
 	GetSchema(schemaID int) (*Schema, error)
 	GetLatestSchema(subject string, isKey bool) (*Schema, error)
 	GetSchemaVersions(subject string, isKey bool) ([]int, error)
@@ -100,6 +101,7 @@ const (
 	schemaByID       = "/schemas/ids/%d"
 	subjectVersions  = "/subjects/%s/versions"
 	subjectByVersion = "/subjects/%s/versions/%s"
+	subjects         = "/subjects"
 	contentType      = "application/vnd.schemaregistry.v1+json"
 )
 
@@ -202,6 +204,20 @@ func (client *SchemaRegistryClient) GetSchemaVersions(subject string, isKey bool
 	}
 
 	return versions, nil
+}
+
+// GetSubjects returns a list of all subjects in the registry
+func (client *SchemaRegistryClient) GetSubjects() ([]string, error) {
+	resp, err := client.httpRequest("GET", subjects, nil)
+	if err != nil {
+		return nil, err
+	}
+	var allSubjects = []string{}
+	err = json.Unmarshal(resp, &allSubjects)
+	if err != nil {
+		return nil, err
+	}
+	return allSubjects, nil
 }
 
 // GetSchemaByVersion gets the schema associated with the given subject.
