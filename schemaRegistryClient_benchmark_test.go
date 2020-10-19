@@ -41,9 +41,9 @@ func BenchmarkGetSchemaBySubject(b *testing.B) {
 
 	b.Run("BenchmarkGetSchemaBySubjectWithCachingEnabled", GenerateBenchmarkGetSchemaBySubject(srclient))
 
-	srclient.SetCachingEnabled(false)
+	// srclient.SetCachingEnabled(false)
 
-	b.Run("BenchmarkGetSchemaBySubjectWithCachingDisabled", GenerateBenchmarkGetSchemaBySubject(srclient))
+	// b.Run("BenchmarkGetSchemaBySubjectWithCachingDisabled", GenerateBenchmarkGetSchemaBySubject(srclient))
 }
 
 func GenerateBenchmarkGetSchemaBySubject(srclient *SchemaRegistryClient) func(*testing.B) {
