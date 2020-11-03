@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/stretchr/testify/assert"
 )
 
 /*
@@ -66,16 +64,16 @@ func TestMockSchemaRegistryClient_CreateSchema(t *testing.T) {
 	 Assert Schemas are registered with proper IDs and Versions
 	 By virtue of this test, we also test MockSchemaRegistryClient.GetSchema
 	*/
-	schemaReg1, _ := srClient.GetSchema(1)
+	schemaReg1, _ := srClient.GetSchemaByID(1)
 	assert.Equal(t, schema, schemaReg1.schema)
 	assert.Equal(t, 1, schemaReg1.version)
-	schemaReg2, _ := srClient.GetSchema(2)
+	schemaReg2, _ := srClient.GetSchemaByID(2)
 	assert.Equal(t, schema, schemaReg2.schema)
 	assert.Equal(t, 1, schemaReg2.version)
-	schemaReg3, _ := srClient.GetSchema(3)
+	schemaReg3, _ := srClient.GetSchemaByID(3)
 	assert.Equal(t, schema2, schemaReg3.schema)
 	assert.Equal(t, 2, schemaReg3.version)
-	schemaReg4, _ := srClient.GetSchema(4)
+	schemaReg4, _ := srClient.GetSchemaByID(4)
 	assert.Equal(t, schema2, schemaReg4.schema)
 	assert.Equal(t, 2, schemaReg4.version)
 
@@ -104,7 +102,7 @@ func TestMockSchemaRegistryClient_GetSchemaVersions(t *testing.T) {
 
 func TestMockSchemaRegistryClient_GetSchemaByVersion(t *testing.T) {
 
-	oldVersion, _ := srClient.GetSchemaByVersion("test1", 1, false)
+	oldVersion, _ := srClient.GetSchemaByVersion("test1", fmt.Sprint(1), false)
 	assert.Equal(t, schema, oldVersion.schema)
 
 }
