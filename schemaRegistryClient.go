@@ -2,6 +2,7 @@ package srclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/linkedin/goavro/v2"
+	"golang.org/x/sync/semaphore"
 )
 
 // ISchemaRegistryClient provides the
@@ -46,6 +48,7 @@ type SchemaRegistryClient struct {
 	idSchemaCacheLock      sync.RWMutex
 	subjectSchemaCache     map[string]*Schema
 	subjectSchemaCacheLock sync.RWMutex
+	sem                    *semaphore.Weighted
 }
 
 type SchemaType string
@@ -109,11 +112,15 @@ const (
 // using this client can retrieve data about schemas, which
 // in turn can be used to serialize and deserialize records.
 func CreateSchemaRegistryClient(schemaRegistryURL string) *SchemaRegistryClient {
-	return &SchemaRegistryClient{schemaRegistryURL: schemaRegistryURL,
-		httpClient:     &http.Client{Timeout: 5 * time.Second},
-		cachingEnabled: true, codecCreationEnabled: true,
-		idSchemaCache:      make(map[int]*Schema),
-		subjectSchemaCache: make(map[string]*Schema)}
+	return &SchemaRegistryClient{
+		schemaRegistryURL:    schemaRegistryURL,
+		httpClient:           &http.Client{Timeout: 5 * time.Second},
+		cachingEnabled:       true,
+		codecCreationEnabled: true,
+		idSchemaCache:        make(map[int]*Schema),
+		subjectSchemaCache:   make(map[string]*Schema),
+		sem:                  semaphore.NewWeighted(16),
+	}
 }
 
 // GetSchema gets the schema associated with the given id.
@@ -381,6 +388,9 @@ func (client *SchemaRegistryClient) httpRequest(method, uri string, payload io.R
 		req.SetBasicAuth(client.credentials.username, client.credentials.password)
 	}
 	req.Header.Set("Content-Type", contentType)
+
+	client.sem.Acquire(context.Background(), 1)
+	defer client.sem.Release(1)
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
 		return nil, err
