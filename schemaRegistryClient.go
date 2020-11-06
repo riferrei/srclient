@@ -116,7 +116,7 @@ func CreateSchemaRegistryClient(schemaRegistryURL string) *SchemaRegistryClient 
 		schemaRegistryURL:    schemaRegistryURL,
 		httpClient:           &http.Client{Timeout: 5 * time.Second},
 		cachingEnabled:       true,
-		codecCreationEnabled: true,
+		codecCreationEnabled: false,
 		idSchemaCache:        make(map[int]*Schema),
 		subjectSchemaCache:   make(map[string]*Schema),
 		sem:                  semaphore.NewWeighted(16),
@@ -422,7 +422,15 @@ func (schema *Schema) Version() int {
 }
 
 // Codec ensures access to Codec
+// Will try to initialize a new one if it hasn't been initialized before
+// Will return nil if it can't initialize a codec from the schema
 func (schema *Schema) Codec() *goavro.Codec {
+	if schema.codec == nil {
+		codec, err := goavro.NewCodec(schema.Schema())
+		if err == nil {
+			schema.codec = codec
+		}
+	}
 	return schema.codec
 }
 
