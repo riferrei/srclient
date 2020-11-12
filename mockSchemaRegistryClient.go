@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
+	"time"
 )
 
 // MockSchemaRegistryClient is a ISchemaRegistryClient used for testing purposes
