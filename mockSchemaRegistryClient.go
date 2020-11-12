@@ -193,6 +193,10 @@ func (mck MockSchemaRegistryClient) SetCodecCreationEnabled(value bool) {
 	// Nothing because codecs do not matter in the inMem storage of schemas
 }
 
+func (mck MockSchemaRegistryClient) IsSchemaCompatible(subject, schema, version string, schemaType SchemaType, isKey bool) (bool, error) {
+	return false, errors.New("mock schema registry client can't check for schema compatibility")
+}
+
 /*
 These classes are written as helpers and therefore, are not exported.
 generateVersion will register a new version of the schema passed, it will NOT do any checks

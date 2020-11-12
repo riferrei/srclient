@@ -41,6 +41,10 @@ type SchemaRegistryClient struct {
 	sem *semaphore.Weighted
 }
 
+type isCompatibleResponse struct {
+	IsCompatible bool `json:"is_compatible"`
+}
+
 const (
 	schemaByID       = "/schemas/ids/%d"
 	subjectVersions  = "/subjects/%s/versions"
@@ -186,6 +190,32 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string, 
 	// from Schema Registry, as well as in the best practice
 	// that schemas don't change very often.
 	return client.GetLatestSchema(subject, isKey)
+}
+
+// IsSchemaCompatible checks if the given schema is compatible with the given subject and version
+// valid versions are versionID and "latest"
+func (client *SchemaRegistryClient) IsSchemaCompatible(subject, schema, version string, schemaType SchemaType, isKey bool) (bool, error) {
+	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType.String(), References: make([]Reference, 0)}
+	schemaReqBytes, err := json.Marshal(schemaReq)
+	if err != nil {
+		return false, err
+	}
+	payload := bytes.NewBuffer(schemaReqBytes)
+
+	concreteSubject := getConcreteSubject(subject, isKey)
+	url := fmt.Sprintf("/compatibility/subjects/%s/versions/%s", concreteSubject, version)
+	resp, err := client.httpRequest("POST", url, payload)
+	if err != nil {
+		return false, err
+	}
+
+	compatibilityResponse := new(isCompatibleResponse)
+	err = json.Unmarshal(resp, compatibilityResponse)
+	if err != nil {
+		return false, err
+	}
+
+	return compatibilityResponse.IsCompatible, nil
 }
 
 // SetCachingEnabled allows the client to cache any values

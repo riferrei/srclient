@@ -16,6 +16,8 @@ type ISchemaRegistryClient interface {
 
 	SetCachingEnabled(value bool)
 	SetCodecCreationEnabled(value bool)
+
+	IsSchemaCompatible(subject, schema, version string, schemaType SchemaType, isKey bool) (bool, error)
 }
 
 // ensure interface is implemented
