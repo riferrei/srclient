@@ -15,28 +15,8 @@ import (
 	"time"
 
 	"github.com/linkedin/goavro/v2"
-
 	"golang.org/x/sync/semaphore"
 )
-
-// ISchemaRegistryClient provides the
-// definition of the operations that
-// this Schema Registry client provides.
-type ISchemaRegistryClient interface {
-	GetSubjects() ([]string, error)
-
-	GetLatestSchema(subject string, isKey bool) (*Schema, error)
-	GetSchemaVersions(subject string, isKey bool) ([]int, error)
-
-	GetSchemaByID(schemaID int) (*Schema, error)
-	GetSchemaBySubject(subject string, isKey bool) (*Schema, error)
-	GetSchemaByVersion(subject string, version int, isKey bool) (*Schema, error)
-
-	CreateSchema(subject string, schema string, schemaType SchemaType, isKey bool, references ...Reference) (*Schema, error)
-
-	SetCachingEnabled(value bool)
-	SetCodecCreationEnabled(value bool)
-}
 
 // SchemaRegistryClient allows interactions with
 // Schema Registry over HTTP. Applications using
@@ -217,7 +197,7 @@ func (client *SchemaRegistryClient) SetCachingEnabled(value bool) {
 	client.cachingEnabled = value
 }
 
-// CodecCreationEnabled allows the application to enable/disable
+// SetCodecCreationEnabled allows the application to enable/disable
 // the automatic creation of codec's when schemas are returned.
 func (client *SchemaRegistryClient) SetCodecCreationEnabled(value bool) {
 	client.codecCreationEnabledLock.Lock()
@@ -231,7 +211,7 @@ func (client *SchemaRegistryClient) requestSchemaByID(id int) (*Schema, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	
 	schema, err := client.schemaFromResponse(resp)
 	if err != nil {
 		return nil, err
