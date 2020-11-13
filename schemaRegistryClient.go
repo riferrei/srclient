@@ -31,6 +31,7 @@ type ISchemaRegistryClient interface {
 	SetTimeout(timeout time.Duration)
 	CachingEnabled(value bool)
 	CodecCreationEnabled(value bool)
+	IsSchemaCompatible(subject, schema, version string, schemaType SchemaType, isKey bool) (bool, error)
 }
 
 // SchemaRegistryClient allows interactions with
@@ -99,6 +100,10 @@ type schemaResponse struct {
 	Version int    `json:"version"`
 	Schema  string `json:"schema"`
 	ID      int    `json:"id"`
+}
+
+type isCompatibleResponse struct {
+	IsCompatible bool `json:"is_compatible"`
 }
 
 const (
@@ -290,6 +295,32 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 	}
 
 	return newSchema, nil
+}
+
+// IsSchemaCompatible checks if the given schema is compatible with the given subject and version
+// valid versions are versionID and "latest"
+func (client *SchemaRegistryClient) IsSchemaCompatible(subject, schema, version string, schemaType SchemaType, isKey bool) (bool, error) {
+	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType.String(), References: make([]Reference, 0)}
+	schemaReqBytes, err := json.Marshal(schemaReq)
+	if err != nil {
+		return false, err
+	}
+	payload := bytes.NewBuffer(schemaReqBytes)
+
+	concreteSubject := getConcreteSubject(subject, isKey)
+	url := fmt.Sprintf("/compatibility/subjects/%s/versions/%s", concreteSubject, version)
+	resp, err := client.httpRequest("POST", url, payload)
+	if err != nil {
+		return false, err
+	}
+
+	compatibilityResponse := new(isCompatibleResponse)
+	err = json.Unmarshal(resp, compatibilityResponse)
+	if err != nil {
+		return false, err
+	}
+
+	return compatibilityResponse.IsCompatible, nil
 }
 
 // SetCredentials allows users to set credentials to be
