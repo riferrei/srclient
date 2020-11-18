@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+var _ ISchemaRegistryClient = MockSchemaRegistryClient{}
+
 type MockSchemaRegistryClient struct {
 	schemaRegistryURL    string
 	credentials          *credentials
@@ -160,6 +162,12 @@ func (mck MockSchemaRegistryClient) GetSubjects() ([]string, error) {
 		allSubjects = append(allSubjects, subject)
 	}
 	return allSubjects, nil
+}
+
+// DeleteSubject removes given subject from cache
+func (mck MockSchemaRegistryClient) DeleteSubject(subject string, _ bool) error {
+	delete(mck.schemaCache, subject)
+	return nil
 }
 
 /*
