@@ -219,6 +219,20 @@ func (client *SchemaRegistryClient) IsSchemaCompatible(subject, schema, version 
 }
 
 // SetCachingEnabled allows the client to cache any values
+// DeleteSubject deletes
+func (client *SchemaRegistryClient) DeleteSubject(subject string, permanent bool) error {
+	uri := "/subjects/" + subject
+	_, err := client.httpRequest("DELETE", uri, nil)
+	if err != nil || !permanent {
+		return err
+	}
+
+	uri += "?permanent=true"
+	_, err = client.httpRequest("DELETE", uri, nil)
+	return err
+}
+
+// CachingEnabled allows the client to cache any values
 // that have been returned, which may speed up performance
 // if these values rarely changes.
 func (client *SchemaRegistryClient) SetCachingEnabled(value bool) {
@@ -241,7 +255,7 @@ func (client *SchemaRegistryClient) requestSchemaByID(id int) (*Schema, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	schema, err := client.schemaFromResponse(resp)
 	if err != nil {
 		return nil, err

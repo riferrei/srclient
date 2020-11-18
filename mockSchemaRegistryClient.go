@@ -169,6 +169,12 @@ func (mck MockSchemaRegistryClient) GetSubjects() ([]string, error) {
 	return allSubjects, nil
 }
 
+// DeleteSubject removes given subject from cache
+func (mck MockSchemaRegistryClient) DeleteSubject(subject string, _ bool) error {
+	delete(mck.schemaCache, subject)
+	return nil
+}
+
 /*
 The classes below are implemented to accommodate ISchemaRegistryClient; However, they do nothing.
 */
@@ -177,7 +183,6 @@ The classes below are implemented to accommodate ISchemaRegistryClient; However,
 func (mck MockSchemaRegistryClient) SetCredentials(username string, password string) {
 	// Nothing because mockSchemaRegistryClient is actually very vulnerable
 }
-
 
 func (mck MockSchemaRegistryClient) SetTimeout(timeout time.Duration) {
 	// Nothing because there is no timeout for cache

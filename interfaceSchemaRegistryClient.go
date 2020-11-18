@@ -13,6 +13,7 @@ type ISchemaRegistryClient interface {
 	GetSchemaByVersion(subject string, version string, isKey bool) (*Schema, error)
 
 	CreateSchema(subject string, schema string, schemaType SchemaType, isKey bool, references ...Reference) (*Schema, error)
+	DeleteSubject(subject string, permanent bool) error
 
 	SetCachingEnabled(value bool)
 	SetCodecCreationEnabled(value bool)
