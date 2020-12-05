@@ -27,6 +27,7 @@ type ISchemaRegistryClient interface {
 	GetSchemaVersions(subject string, isKey bool) ([]int, error)
 	GetSchemaByVersion(subject string, version int, isKey bool) (*Schema, error)
 	CreateSchema(subject string, schema string, schemaType SchemaType, isKey bool, references ...Reference) (*Schema, error)
+	DeleteSubject(subject string, permanent bool) error
 	SetCredentials(username string, password string)
 	SetTimeout(timeout time.Duration)
 	CachingEnabled(value bool)
@@ -53,6 +54,8 @@ type SchemaRegistryClient struct {
 	subjectSchemaCacheLock   sync.RWMutex
 	sem                      *semaphore.Weighted
 }
+
+var _ ISchemaRegistryClient = new(SchemaRegistryClient)
 
 type SchemaType string
 
@@ -321,6 +324,19 @@ func (client *SchemaRegistryClient) IsSchemaCompatible(subject, schema, version 
 	}
 
 	return compatibilityResponse.IsCompatible, nil
+}
+
+// DeleteSubject deletes
+func (client *SchemaRegistryClient) DeleteSubject(subject string, permanent bool) error {
+	uri := "/subjects/" + subject
+	_, err := client.httpRequest("DELETE", uri, nil)
+	if err != nil || !permanent {
+		return err
+	}
+
+	uri += "?permanent=true"
+	_, err = client.httpRequest("DELETE", uri, nil)
+	return err
 }
 
 // SetCredentials allows users to set credentials to be
