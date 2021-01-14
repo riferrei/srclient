@@ -29,7 +29,7 @@ func TestSchemaRegistryClient_CreateSchemaWithoutReferences(t *testing.T) {
 		response, _ := json.Marshal(responsePayload)
 
 		switch req.URL.String() {
-		case "/subjects/test1-value/versions":
+		case "/subjects/test1/versions":
 			requestPayload := schemaRequest{
 				Schema:     "test2",
 				SchemaType: Protobuf.String(),
@@ -40,7 +40,7 @@ func TestSchemaRegistryClient_CreateSchemaWithoutReferences(t *testing.T) {
 			assert.Equal(t, bodyToString(req.Body), string(expected))
 			// Send response to be tested
 			rw.Write(response)
-		case "/subjects/test1-value/versions/latest":
+		case "/subjects/test1/versions/latest":
 			// Send response to be tested
 			rw.Write(response)
 		default:
@@ -72,7 +72,7 @@ func TestSchemaRegistryClient_CreateSchemaWithReferences(t *testing.T) {
 		response, _ := json.Marshal(responsePayload)
 
 		switch req.URL.String() {
-		case "/subjects/test1-value/versions":
+		case "/subjects/test1/versions":
 			requestPayload := schemaRequest{
 				Schema:     "test2",
 				SchemaType: Protobuf.String(),
@@ -85,7 +85,7 @@ func TestSchemaRegistryClient_CreateSchemaWithReferences(t *testing.T) {
 			assert.Equal(t, bodyToString(req.Body), string(expected))
 			// Send response to be tested
 			rw.Write(response)
-		case "/subjects/test1-value/versions/latest":
+		case "/subjects/test1/versions/latest":
 			// Send response to be tested
 			rw.Write(response)
 		default:
