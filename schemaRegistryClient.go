@@ -24,9 +24,13 @@ type ISchemaRegistryClient interface {
 	GetSubjects() ([]string, error)
 	GetSchema(schemaID int) (*Schema, error)
 	GetLatestSchema(subject string, isKey bool) (*Schema, error)
+	GetLatestSchemaWithArbitrarySubject(subject string) (*Schema, error)
 	GetSchemaVersions(subject string, isKey bool) ([]int, error)
+	GetSchemaVersionsWithArbitrarySubject(subject string) ([]int, error)
 	GetSchemaByVersion(subject string, version int, isKey bool) (*Schema, error)
+	GetSchemaByVersionWithArbitrarySubject(subject string, version int) (*Schema, error)
 	CreateSchema(subject string, schema string, schemaType SchemaType, isKey bool, references ...Reference) (*Schema, error)
+	CreateSchemaWithArbitrarySubject(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
 	DeleteSubject(subject string, permanent bool) error
 	SetCredentials(username string, password string)
 	SetTimeout(timeout time.Duration)
@@ -187,7 +191,25 @@ func (client *SchemaRegistryClient) GetLatestSchema(subject string, isKey bool) 
 	// Schema Registry.
 	cachingEnabled := client.getCachingEnabled()
 	client.CachingEnabled(false)
-	schema, err := client.getVersion(subject, "latest", isKey)
+	concreteSubject := getConcreteSubject(subject, isKey)
+	schema, err := client.getVersion(concreteSubject, "latest")
+	client.CachingEnabled(cachingEnabled)
+
+	return schema, err
+}
+
+// GetLatestSchemaWithArbitrarySubject gets the schema associated with the given subject.
+// '-value' or '-key' is not appended to the subject
+// The schema returned contains the last version for that subject.
+func (client *SchemaRegistryClient) GetLatestSchemaWithArbitrarySubject(subject string) (*Schema, error) {
+
+	// In order to ensure consistency, we need
+	// to temporarily disable caching to force
+	// the retrieval of the latest release from
+	// Schema Registry.
+	cachingEnabled := client.getCachingEnabled()
+	client.CachingEnabled(false)
+	schema, err := client.getVersion(subject, "latest")
 	client.CachingEnabled(cachingEnabled)
 
 	return schema, err
@@ -195,9 +217,14 @@ func (client *SchemaRegistryClient) GetLatestSchema(subject string, isKey bool) 
 
 // GetSchemaVersions returns a list of versions from a given subject.
 func (client *SchemaRegistryClient) GetSchemaVersions(subject string, isKey bool) ([]int, error) {
-
 	concreteSubject := getConcreteSubject(subject, isKey)
-	resp, err := client.httpRequest("GET", fmt.Sprintf(subjectVersions, concreteSubject), nil)
+
+	return client.GetSchemaVersionsWithArbitrarySubject(concreteSubject)
+}
+
+// GetSchemaVersionsWithArbitrarySubject returns a list of versions from a given subject (without appending '-key' or '-value').
+func (client *SchemaRegistryClient) GetSchemaVersionsWithArbitrarySubject(subject string) ([]int, error) {
+	resp, err := client.httpRequest("GET", fmt.Sprintf(subjectVersions, subject), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +255,15 @@ func (client *SchemaRegistryClient) GetSubjects() ([]string, error) {
 // GetSchemaByVersion gets the schema associated with the given subject.
 // The schema returned contains the version specified as a parameter.
 func (client *SchemaRegistryClient) GetSchemaByVersion(subject string, version int, isKey bool) (*Schema, error) {
-	return client.getVersion(subject, strconv.Itoa(version), isKey)
+	concreteSubject := getConcreteSubject(subject, isKey)
+
+	return client.GetSchemaByVersionWithArbitrarySubject(concreteSubject, version)
+}
+
+// GetSchemaByVersion gets the schema associated with the given subject.
+// The schema returned contains the version specified as a parameter.
+func (client *SchemaRegistryClient) GetSchemaByVersionWithArbitrarySubject(subject string, version int) (*Schema, error) {
+	return client.getVersion(subject, strconv.Itoa(version))
 }
 
 // CreateSchema creates a new schema in Schema Registry and associates
@@ -239,6 +274,14 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 
 	concreteSubject := getConcreteSubject(subject, isKey)
 
+	return client.CreateSchemaWithArbitrarySubject(concreteSubject, schema, schemaType, references...)
+}
+
+// CreateSchemaWithArbitrarySubject creates a new schema in Schema Registry and associates
+// with the subject provided (without appending '-value' or '-key'). It returns the newly created schema with
+// all its associated information.
+func (client *SchemaRegistryClient) CreateSchemaWithArbitrarySubject(subject string, schema string,
+	schemaType SchemaType, references ...Reference) (*Schema, error) {
 	switch schemaType {
 	case Avro, Json:
 		compiledRegex := regexp.MustCompile(`\r?\n`)
@@ -259,7 +302,7 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 		return nil, err
 	}
 	payload := bytes.NewBuffer(schemaBytes)
-	resp, err := client.httpRequest("POST", fmt.Sprintf(subjectVersions, concreteSubject), payload)
+	resp, err := client.httpRequest("POST", fmt.Sprintf(subjectVersions, subject), payload)
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +319,7 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 	// this logic strongly relies on the idempotent guarantees
 	// from Schema Registry, as well as in the best practice
 	// that schemas don't change very often.
-	newSchema, err := client.GetLatestSchema(subject, isKey)
+	newSchema, err := client.GetLatestSchemaWithArbitrarySubject(subject)
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +327,7 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 	if client.getCachingEnabled() {
 
 		// Update the subject-2-schema cache
-		cacheKey := cacheKey(concreteSubject,
+		cacheKey := cacheKey(subject,
 			strconv.Itoa(newSchema.version))
 		client.subjectSchemaCacheLock.Lock()
 		client.subjectSchemaCache[cacheKey] = newSchema
@@ -303,6 +346,14 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 // IsSchemaCompatible checks if the given schema is compatible with the given subject and version
 // valid versions are versionID and "latest"
 func (client *SchemaRegistryClient) IsSchemaCompatible(subject, schema, version string, schemaType SchemaType, isKey bool) (bool, error) {
+	concreteSubject := getConcreteSubject(subject, isKey)
+
+	return client.IsSchemaWithArbitrarySubjectCompatible(concreteSubject, schema, version, schemaType)
+}
+
+// IsSchemaWithArbitrarySubjectCompatible checks if the given schema is compatible with the given subject and version (without appending '-value' or '-key')
+// valid versions are versionID and "latest"
+func (client *SchemaRegistryClient) IsSchemaWithArbitrarySubjectCompatible(subject, schema, version string, schemaType SchemaType) (bool, error) {
 	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType.String(), References: make([]Reference, 0)}
 	schemaReqBytes, err := json.Marshal(schemaReq)
 	if err != nil {
@@ -310,8 +361,7 @@ func (client *SchemaRegistryClient) IsSchemaCompatible(subject, schema, version 
 	}
 	payload := bytes.NewBuffer(schemaReqBytes)
 
-	concreteSubject := getConcreteSubject(subject, isKey)
-	url := fmt.Sprintf("/compatibility/subjects/%s/versions/%s", concreteSubject, version)
+	url := fmt.Sprintf("/compatibility/subjects/%s/versions/%s", subject, version)
 	resp, err := client.httpRequest("POST", url, payload)
 	if err != nil {
 		return false, err
@@ -374,12 +424,10 @@ func (client *SchemaRegistryClient) CodecCreationEnabled(value bool) {
 }
 
 func (client *SchemaRegistryClient) getVersion(subject string,
-	version string, isKey bool) (*Schema, error) {
-
-	concreteSubject := getConcreteSubject(subject, isKey)
+	version string) (*Schema, error) {
 
 	if client.getCachingEnabled() {
-		cacheKey := cacheKey(concreteSubject, version)
+		cacheKey := cacheKey(subject, version)
 		client.subjectSchemaCacheLock.RLock()
 		cachedResult := client.subjectSchemaCache[cacheKey]
 		client.subjectSchemaCacheLock.RUnlock()
@@ -388,7 +436,7 @@ func (client *SchemaRegistryClient) getVersion(subject string,
 		}
 	}
 
-	resp, err := client.httpRequest("GET", fmt.Sprintf(subjectByVersion, concreteSubject, version), nil)
+	resp, err := client.httpRequest("GET", fmt.Sprintf(subjectByVersion, subject, version), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -415,7 +463,7 @@ func (client *SchemaRegistryClient) getVersion(subject string,
 	if client.getCachingEnabled() {
 
 		// Update the subject-2-schema cache
-		cacheKey := cacheKey(concreteSubject, version)
+		cacheKey := cacheKey(subject, version)
 		client.subjectSchemaCacheLock.Lock()
 		client.subjectSchemaCache[cacheKey] = schema
 		client.subjectSchemaCacheLock.Unlock()
