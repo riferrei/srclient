@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -68,7 +69,7 @@ func (mck MockSchemaRegistryClient) CreateSchemaWithArbitrarySubject(subject str
 		compiledRegex := regexp.MustCompile(`\r?\n`)
 		schema = compiledRegex.ReplaceAllString(schema, " ")
 	case Protobuf:
-		break
+		schema = strings.ReplaceAll(schema, "\n", "")
 	default:
 		return nil, fmt.Errorf("invalid schema type. valid values are Avro, Json, or Protobuf")
 	}
