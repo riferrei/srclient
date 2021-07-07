@@ -536,8 +536,8 @@ func (schema *Schema) Version() int {
 	return schema.version
 }
 
-// Reference ensures access to Reference
-func (schema *Schema) Reference() []Reference {
+// References ensures access to References
+func (schema *Schema) References() []Reference {
 	return schema.references
 }
 
