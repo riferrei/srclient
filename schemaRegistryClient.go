@@ -85,10 +85,11 @@ type Reference struct {
 // Schema is a data structure that holds all
 // the relevant information about schemas.
 type Schema struct {
-	id      int
-	schema  string
-	version int
-	codec   *goavro.Codec
+	id         int
+	schema     string
+	version    int
+	References []Reference
+	codec      *goavro.Codec
 }
 
 type credentials struct {
@@ -103,10 +104,11 @@ type schemaRequest struct {
 }
 
 type schemaResponse struct {
-	Subject string `json:"subject"`
-	Version int    `json:"version"`
-	Schema  string `json:"schema"`
-	ID      int    `json:"id"`
+	Subject    string      `json:"subject"`
+	Version    int         `json:"version"`
+	Schema     string      `json:"schema"`
+	ID         int         `json:"id"`
+	References []Reference `json:"references"`
 }
 
 type isCompatibleResponse struct {
@@ -423,8 +425,7 @@ func (client *SchemaRegistryClient) CodecCreationEnabled(value bool) {
 	client.codecCreationEnabled = value
 }
 
-func (client *SchemaRegistryClient) getVersion(subject string,
-	version string) (*Schema, error) {
+func (client *SchemaRegistryClient) getVersion(subject string, version string) (*Schema, error) {
 
 	if client.getCachingEnabled() {
 		cacheKey := cacheKey(subject, version)
@@ -454,10 +455,11 @@ func (client *SchemaRegistryClient) getVersion(subject string,
 		}
 	}
 	var schema = &Schema{
-		id:      schemaResp.ID,
-		schema:  schemaResp.Schema,
-		version: schemaResp.Version,
-		codec:   codec,
+		id:         schemaResp.ID,
+		schema:     schemaResp.Schema,
+		version:    schemaResp.Version,
+		References: schemaResp.References,
+		codec:      codec,
 	}
 
 	if client.getCachingEnabled() {
