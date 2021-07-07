@@ -88,7 +88,7 @@ type Schema struct {
 	id         int
 	schema     string
 	version    int
-	References []Reference
+	references []Reference
 	codec      *goavro.Codec
 }
 
@@ -458,7 +458,7 @@ func (client *SchemaRegistryClient) getVersion(subject string, version string) (
 		id:         schemaResp.ID,
 		schema:     schemaResp.Schema,
 		version:    schemaResp.Version,
-		References: schemaResp.References,
+		references: schemaResp.References,
 		codec:      codec,
 	}
 
@@ -534,6 +534,11 @@ func (schema *Schema) Schema() string {
 // Version ensures access to Version
 func (schema *Schema) Version() int {
 	return schema.version
+}
+
+// Reference ensures access to Reference
+func (schema *Schema) Reference() []Reference {
+	return schema.references
 }
 
 // Codec ensures access to Codec
