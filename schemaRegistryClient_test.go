@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -146,25 +147,13 @@ func TestSchemaRegistryClient_GetSchemaByVersionWithArbitrarySubjectWithReferenc
 }
 
 func TestSchemaRegistryClient_GetSchemaByVersionWithArbitrarySubjectWithoutReferences(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		responsePayload := schemaResponse{
-			Subject:    "test1",
-			Version:    1,
-			Schema:     "payload",
-			ID:         1,
-			References: nil,
-		}
-		response, _ := json.Marshal(responsePayload)
-
-		switch req.URL.String() {
-		case "/subjects/test1/versions/1":
-			// Send response to be tested
-			rw.Write(response)
-		default:
-			require.Fail(t, "unhandled request")
-		}
-
-	}))
+	server, call := mockServerWithSchemaResponse(t,"test1", "1", schemaResponse{
+		Subject:    "test1",
+		Version:    1,
+		Schema:     "payload",
+		ID:         1,
+		References: nil,
+	})
 
 	srClient := CreateSchemaRegistryClient(server.URL)
 	srClient.CodecCreationEnabled(false)
@@ -172,10 +161,78 @@ func TestSchemaRegistryClient_GetSchemaByVersionWithArbitrarySubjectWithoutRefer
 
 	// Test response
 	assert.NoError(t, err)
+
+	assert.Equal(t, 1, *call)
 	assert.Equal(t, schema.ID(), 1)
 	assert.Nil(t, schema.codec)
 	assert.Equal(t, schema.Schema(), "payload")
 	assert.Equal(t, schema.Version(), 1)
 	assert.Nil(t, schema.References())
 	assert.Equal(t, len(schema.References()), 0)
+}
+
+func TestSchemaRegistryClient_GetSchemaByVersionWithArbitrarySubjectReturnsValueFromCache(t *testing.T) {
+	server, call := mockServerWithSchemaResponse(t,"test1", "1", schemaResponse{
+		Subject:    "test1",
+		Version:    1,
+		Schema:     "payload",
+		ID:         1,
+		References: nil,
+	})
+
+	srClient := CreateSchemaRegistryClient(server.URL)
+	schema1, err := srClient.GetSchemaByVersionWithArbitrarySubject("test1", 1)
+
+	// Test response
+	assert.NoError(t, err)
+
+	// When called twice
+	schema2, err := srClient.GetSchemaByVersionWithArbitrarySubject("test1", 1)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1, *call)
+	assert.Equal(t, schema1, schema2)
+}
+
+func TestSchemaRegistryClient_GetLatestSchemaReturnsValueFromCache(t *testing.T) {
+	server, call := mockServerWithSchemaResponse(t,"test1-value", "latest", schemaResponse{
+		Subject:    "test1",
+		Version:    1,
+		Schema:     "payload",
+		ID:         1,
+		References: nil,
+	})
+
+	srClient := CreateSchemaRegistryClient(server.URL)
+	schema1, err := srClient.GetLatestSchema("test1", false)
+
+	// Test response
+	assert.NoError(t, err)
+
+	// When called twice
+	schema2, err := srClient.GetLatestSchema("test1", false)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1, *call)
+	assert.Equal(t, schema1, schema2)
+}
+
+
+func mockServerWithSchemaResponse(t *testing.T, subject string, version string, schemaResponse schemaResponse) (*httptest.Server, *int) {
+	var count int
+	return httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		count++
+		response, _ := json.Marshal(schemaResponse)
+
+		switch req.URL.String() {
+		case fmt.Sprintf("/subjects/%s/versions/%s", subject, version):
+			// Send response to be tested
+			_, err := rw.Write(response)
+			if err != nil {
+				t.Errorf("could not write response %s", err)
+			}
+		default:
+			require.Fail(t, "unhandled request")
+		}
+	})), &count
 }
