@@ -186,16 +186,8 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 // GetLatestSchema gets the schema associated with the given subject.
 // The schema returned contains the last version for that subject.
 func (client *SchemaRegistryClient) GetLatestSchema(subject string, isKey bool) (*Schema, error) {
-
-	// In order to ensure consistency, we need
-	// to temporarily disable caching to force
-	// the retrieval of the latest release from
-	// Schema Registry.
-	cachingEnabled := client.getCachingEnabled()
-	client.CachingEnabled(false)
 	concreteSubject := getConcreteSubject(subject, isKey)
 	schema, err := client.getVersion(concreteSubject, "latest")
-	client.CachingEnabled(cachingEnabled)
 
 	return schema, err
 }
@@ -204,15 +196,7 @@ func (client *SchemaRegistryClient) GetLatestSchema(subject string, isKey bool) 
 // '-value' or '-key' is not appended to the subject
 // The schema returned contains the last version for that subject.
 func (client *SchemaRegistryClient) GetLatestSchemaWithArbitrarySubject(subject string) (*Schema, error) {
-
-	// In order to ensure consistency, we need
-	// to temporarily disable caching to force
-	// the retrieval of the latest release from
-	// Schema Registry.
-	cachingEnabled := client.getCachingEnabled()
-	client.CachingEnabled(false)
 	schema, err := client.getVersion(subject, "latest")
-	client.CachingEnabled(cachingEnabled)
 
 	return schema, err
 }
