@@ -178,21 +178,6 @@ func main() {
 
 Both examples have been created using https://github.com/confluentinc/confluent-kafka-go[Confluent's Golang for Apache Kafka^TM^].
 
-== Confluent Cloud
-
-To use this client with https://www.confluent.io/confluent-cloud/[Confluent Cloud] you will need the endpoint of your managed Schema Registry and an API Key/Secret.
-Both can be easily retrieved from the Confluent Cloud UI once you select an environment:
-
-image::Getting_Endpoint_and_APIKeys.png[]
-
-Finally, your Go program need to provide this information to the client:
-
-[source,golang]
-----
-schemaRegistryClient := srclient.CreateSchemaRegistryClient("https://prefix.us-east-2.aws.confluent.cloud")
-schemaRegistryClient.SetCredentials("apiKey", "apiSecret")
-----
-
 == Acknowledgements
 
 * Apache, Apache Kafka, Kafka, and associated open source project names are trademarks of the https://www.apache.org/[Apache Software Foundation].
