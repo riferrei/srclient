@@ -89,10 +89,10 @@ func main() {
 
 	// 2) Fetch the latest version of the schema, or create a new one if it is the first
 	schemaRegistryClient := srclient.CreateSchemaRegistryClient("http://localhost:8081")
-	schema, err := schemaRegistryClient.GetLatestSchema(topic, false)
+	schema, err := schemaRegistryClient.GetLatestSchema(topic)
 	if schema == nil {
 		schemaBytes, _ := ioutil.ReadFile("complexType.avsc")
-		schema, err = schemaRegistryClient.CreateSchema(topic, string(schemaBytes), srclient.Avro, false)
+		schema, err = schemaRegistryClient.CreateSchema(topic, string(schemaBytes), srclient.Avro)
 		if err != nil {
 			panic(fmt.Sprintf("Error creating the schema %s", err))
 		}
