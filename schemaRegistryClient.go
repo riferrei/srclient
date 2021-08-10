@@ -23,20 +23,16 @@ import (
 type ISchemaRegistryClient interface {
 	GetSubjects() ([]string, error)
 	GetSchema(schemaID int) (*Schema, error)
-	GetLatestSchema(subject string, isKey bool) (*Schema, error)
-	GetLatestSchemaWithArbitrarySubject(subject string) (*Schema, error)
-	GetSchemaVersions(subject string, isKey bool) ([]int, error)
-	GetSchemaVersionsWithArbitrarySubject(subject string) ([]int, error)
-	GetSchemaByVersion(subject string, version int, isKey bool) (*Schema, error)
-	GetSchemaByVersionWithArbitrarySubject(subject string, version int) (*Schema, error)
-	CreateSchema(subject string, schema string, schemaType SchemaType, isKey bool, references ...Reference) (*Schema, error)
-	CreateSchemaWithArbitrarySubject(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
+	GetLatestSchema(subject string) (*Schema, error)
+	GetSchemaVersions(subject string) ([]int, error)
+	GetSchemaByVersion(subject string, version int) (*Schema, error)
+	CreateSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
 	DeleteSubject(subject string, permanent bool) error
 	SetCredentials(username string, password string)
 	SetTimeout(timeout time.Duration)
 	CachingEnabled(value bool)
 	CodecCreationEnabled(value bool)
-	IsSchemaCompatible(subject, schema, version string, schemaType SchemaType, isKey bool) (bool, error)
+	IsSchemaCompatible(subject, schema, version string, schemaType SchemaType) (bool, error)
 }
 
 // SchemaRegistryClient allows interactions with
@@ -185,31 +181,12 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 
 // GetLatestSchema gets the schema associated with the given subject.
 // The schema returned contains the last version for that subject.
-func (client *SchemaRegistryClient) GetLatestSchema(subject string, isKey bool) (*Schema, error) {
-	concreteSubject := getConcreteSubject(subject, isKey)
-	schema, err := client.getVersion(concreteSubject, "latest")
-
-	return schema, err
-}
-
-// GetLatestSchemaWithArbitrarySubject gets the schema associated with the given subject.
-// '-value' or '-key' is not appended to the subject
-// The schema returned contains the last version for that subject.
-func (client *SchemaRegistryClient) GetLatestSchemaWithArbitrarySubject(subject string) (*Schema, error) {
-	schema, err := client.getVersion(subject, "latest")
-
-	return schema, err
+func (client *SchemaRegistryClient) GetLatestSchema(subject string) (*Schema, error) {
+	return client.getVersion(subject, "latest")
 }
 
 // GetSchemaVersions returns a list of versions from a given subject.
-func (client *SchemaRegistryClient) GetSchemaVersions(subject string, isKey bool) ([]int, error) {
-	concreteSubject := getConcreteSubject(subject, isKey)
-
-	return client.GetSchemaVersionsWithArbitrarySubject(concreteSubject)
-}
-
-// GetSchemaVersionsWithArbitrarySubject returns a list of versions from a given subject (without appending '-key' or '-value').
-func (client *SchemaRegistryClient) GetSchemaVersionsWithArbitrarySubject(subject string) ([]int, error) {
+func (client *SchemaRegistryClient) GetSchemaVersions(subject string) ([]int, error) {
 	resp, err := client.httpRequest("GET", fmt.Sprintf(subjectVersions, subject), nil)
 	if err != nil {
 		return nil, err
@@ -240,15 +217,7 @@ func (client *SchemaRegistryClient) GetSubjects() ([]string, error) {
 
 // GetSchemaByVersion gets the schema associated with the given subject.
 // The schema returned contains the version specified as a parameter.
-func (client *SchemaRegistryClient) GetSchemaByVersion(subject string, version int, isKey bool) (*Schema, error) {
-	concreteSubject := getConcreteSubject(subject, isKey)
-
-	return client.GetSchemaByVersionWithArbitrarySubject(concreteSubject, version)
-}
-
-// GetSchemaByVersion gets the schema associated with the given subject.
-// The schema returned contains the version specified as a parameter.
-func (client *SchemaRegistryClient) GetSchemaByVersionWithArbitrarySubject(subject string, version int) (*Schema, error) {
+func (client *SchemaRegistryClient) GetSchemaByVersion(subject string, version int) (*Schema, error) {
 	return client.getVersion(subject, strconv.Itoa(version))
 }
 
@@ -256,17 +225,6 @@ func (client *SchemaRegistryClient) GetSchemaByVersionWithArbitrarySubject(subje
 // with the subject provided. It returns the newly created schema with
 // all its associated information.
 func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
-	schemaType SchemaType, isKey bool, references ...Reference) (*Schema, error) {
-
-	concreteSubject := getConcreteSubject(subject, isKey)
-
-	return client.CreateSchemaWithArbitrarySubject(concreteSubject, schema, schemaType, references...)
-}
-
-// CreateSchemaWithArbitrarySubject creates a new schema in Schema Registry and associates
-// with the subject provided (without appending '-value' or '-key'). It returns the newly created schema with
-// all its associated information.
-func (client *SchemaRegistryClient) CreateSchemaWithArbitrarySubject(subject string, schema string,
 	schemaType SchemaType, references ...Reference) (*Schema, error) {
 	switch schemaType {
 	case Avro, Json:
@@ -305,7 +263,7 @@ func (client *SchemaRegistryClient) CreateSchemaWithArbitrarySubject(subject str
 	// this logic strongly relies on the idempotent guarantees
 	// from Schema Registry, as well as in the best practice
 	// that schemas don't change very often.
-	newSchema, err := client.GetLatestSchemaWithArbitrarySubject(subject)
+	newSchema, err := client.GetLatestSchema(subject)
 	if err != nil {
 		return nil, err
 	}
@@ -331,15 +289,7 @@ func (client *SchemaRegistryClient) CreateSchemaWithArbitrarySubject(subject str
 
 // IsSchemaCompatible checks if the given schema is compatible with the given subject and version
 // valid versions are versionID and "latest"
-func (client *SchemaRegistryClient) IsSchemaCompatible(subject, schema, version string, schemaType SchemaType, isKey bool) (bool, error) {
-	concreteSubject := getConcreteSubject(subject, isKey)
-
-	return client.IsSchemaWithArbitrarySubjectCompatible(concreteSubject, schema, version, schemaType)
-}
-
-// IsSchemaWithArbitrarySubjectCompatible checks if the given schema is compatible with the given subject and version (without appending '-value' or '-key')
-// valid versions are versionID and "latest"
-func (client *SchemaRegistryClient) IsSchemaWithArbitrarySubjectCompatible(subject, schema, version string, schemaType SchemaType) (bool, error) {
+func (client *SchemaRegistryClient) IsSchemaCompatible(subject, schema, version string, schemaType SchemaType) (bool, error) {
 	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType.String(), References: make([]Reference, 0)}
 	schemaReqBytes, err := json.Marshal(schemaReq)
 	if err != nil {
@@ -540,15 +490,6 @@ func (schema *Schema) Codec() *goavro.Codec {
 
 func cacheKey(subject string, version string) string {
 	return fmt.Sprintf("%s-%s", subject, version)
-}
-
-func getConcreteSubject(subject string, isKey bool) string {
-	if isKey {
-		subject = fmt.Sprintf("%s-key", subject)
-	} else {
-		subject = fmt.Sprintf("%s-value", subject)
-	}
-	return subject
 }
 
 func createError(resp *http.Response) error {

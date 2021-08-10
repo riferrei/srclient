@@ -21,181 +21,187 @@ func bodyToString(in io.ReadCloser) string {
 }
 
 func TestSchemaRegistryClient_CreateSchemaWithoutReferences(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		responsePayload := schemaResponse{
-			Subject: "test1",
-			Version: 1,
-			Schema:  "test2",
-			ID:      1,
-		}
-		response, _ := json.Marshal(responsePayload)
 
-		switch req.URL.String() {
-		case "/subjects/test1-value/versions":
-			requestPayload := schemaRequest{
-				Schema:     "test2",
-				SchemaType: Protobuf.String(),
-				References: []Reference{},
+	{
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			responsePayload := schemaResponse{
+				Subject: "test1",
+				Version: 1,
+				Schema:  "test2",
+				ID:      1,
 			}
-			expected, _ := json.Marshal(requestPayload)
-			// Test payload
-			assert.Equal(t, bodyToString(req.Body), string(expected))
-			// Send response to be tested
-			rw.Write(response)
-		case "/subjects/test1-value/versions/latest":
-			// Send response to be tested
-			rw.Write(response)
-		default:
-			assert.Error(t, errors.New("unhandled request"))
-		}
+			response, _ := json.Marshal(responsePayload)
+			switch req.URL.String() {
+			case "/subjects/test1-value/versions":
 
-	}))
-
-	srClient := CreateSchemaRegistryClient(server.URL)
-	srClient.CodecCreationEnabled(false)
-	schema, err := srClient.CreateSchema("test1", "test2", Protobuf, false)
-
-	// Test response
-	assert.NoError(t, err)
-	assert.Equal(t, schema.id, 1)
-	assert.Nil(t, schema.codec)
-	assert.Equal(t, schema.schema, "test2")
-	assert.Equal(t, schema.version, 1)
-}
-
-func TestSchemaRegistryClient_CreateSchemaWithArbitrarySubjectName(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		responsePayload := schemaResponse{
-			Subject: "test1",
-			Version: 1,
-			Schema:  "test2",
-			ID:      1,
-		}
-		response, _ := json.Marshal(responsePayload)
-
-		switch req.URL.String() {
-		case "/subjects/test1/versions":
-			requestPayload := schemaRequest{
-				Schema:     "test2",
-				SchemaType: Avro.String(),
-				References: []Reference{},
+				requestPayload := schemaRequest{
+					Schema:     "test2",
+					SchemaType: Protobuf.String(),
+					References: []Reference{},
+				}
+				expected, _ := json.Marshal(requestPayload)
+				// Test payload
+				assert.Equal(t, bodyToString(req.Body), string(expected))
+				// Send response to be tested
+				rw.Write(response)
+			case "/subjects/test1-value/versions/latest":
+				// Send response to be tested
+				rw.Write(response)
+			default:
+				assert.Error(t, errors.New("unhandled request"))
 			}
-			expected, _ := json.Marshal(requestPayload)
-			// Test payload
-			assert.Equal(t, bodyToString(req.Body), string(expected))
-			// Send response to be tested
-			rw.Write(response)
-		case "/subjects/test1/versions/latest":
-			// Send response to be tested
-			rw.Write(response)
-		default:
-			assert.Error(t, errors.New("unhandled request"))
-		}
 
-	}))
+		}))
 
-	srClient := CreateSchemaRegistryClient(server.URL)
-	srClient.CodecCreationEnabled(false)
-	schema, err := srClient.CreateSchemaWithArbitrarySubject("test1", "test2", Avro)
+		srClient := CreateSchemaRegistryClient(server.URL)
+		srClient.CodecCreationEnabled(false)
+		schema, err := srClient.CreateSchema("test1-value", "test2", Protobuf)
 
-	// Test response
-	assert.NoError(t, err)
-	assert.Equal(t, schema.id, 1)
-	assert.Nil(t, schema.codec)
-	assert.Equal(t, schema.schema, "test2")
-	assert.Equal(t, schema.version, 1)
-}
-
-func TestSchemaRegistryClient_GetSchemaByVersionWithArbitrarySubjectWithReferences(t *testing.T) {
-	refs := []Reference{
-		{Name: "name1", Subject: "subject1", Version: 1},
-		{Name: "name2", Subject: "subject2", Version: 2},
+		// Test response
+		assert.NoError(t, err)
+		assert.Equal(t, schema.id, 1)
+		assert.Nil(t, schema.codec)
+		assert.Equal(t, schema.schema, "test2")
+		assert.Equal(t, schema.version, 1)
 	}
 
-	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		responsePayload := schemaResponse{
+	{
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			responsePayload := schemaResponse{
+				Subject: "test1",
+				Version: 1,
+				Schema:  "test2",
+				ID:      1,
+			}
+			response, _ := json.Marshal(responsePayload)
+
+			switch req.URL.String() {
+			case "/subjects/test1/versions":
+				requestPayload := schemaRequest{
+					Schema:     "test2",
+					SchemaType: Avro.String(),
+					References: []Reference{},
+				}
+				expected, _ := json.Marshal(requestPayload)
+				// Test payload
+				assert.Equal(t, bodyToString(req.Body), string(expected))
+				// Send response to be tested
+				rw.Write(response)
+			case "/subjects/test1/versions/latest":
+				// Send response to be tested
+				rw.Write(response)
+			default:
+				assert.Error(t, errors.New("unhandled request"))
+			}
+
+		}))
+
+		srClient := CreateSchemaRegistryClient(server.URL)
+		srClient.CodecCreationEnabled(false)
+		schema, err := srClient.CreateSchema("test1", "test2", Avro)
+
+		// Test response
+		assert.NoError(t, err)
+		assert.Equal(t, schema.id, 1)
+		assert.Nil(t, schema.codec)
+		assert.Equal(t, schema.schema, "test2")
+		assert.Equal(t, schema.version, 1)
+	}
+}
+
+func TestSchemaRegistryClient_GetSchemaByVersionWithReferences(t *testing.T) {
+	{
+		refs := []Reference{
+			{Name: "name1", Subject: "subject1", Version: 1},
+			{Name: "name2", Subject: "subject2", Version: 2},
+		}
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			responsePayload := schemaResponse{
+				Subject:    "test1",
+				Version:    1,
+				Schema:     "payload",
+				ID:         1,
+				References: refs,
+			}
+			response, _ := json.Marshal(responsePayload)
+
+			switch req.URL.String() {
+			case "/subjects/test1/versions/1":
+				// Send response to be tested
+				rw.Write(response)
+			default:
+				require.Fail(t, "unhandled request")
+			}
+
+		}))
+
+		srClient := CreateSchemaRegistryClient(server.URL)
+		srClient.CodecCreationEnabled(false)
+		schema, err := srClient.GetSchemaByVersion("test1", 1)
+
+		// Test response
+		assert.NoError(t, err)
+		assert.Equal(t, schema.ID(), 1)
+		assert.Nil(t, schema.codec)
+		assert.Equal(t, schema.Schema(), "payload")
+		assert.Equal(t, schema.Version(), 1)
+		assert.Equal(t, schema.References(), refs)
+		assert.Equal(t, len(schema.References()), 2)
+	}
+	{
+		server, call := mockServerWithSchemaResponse(t, "test1", "1", schemaResponse{
 			Subject:    "test1",
 			Version:    1,
 			Schema:     "payload",
 			ID:         1,
-			References: refs,
-		}
-		response, _ := json.Marshal(responsePayload)
+			References: nil,
+		})
 
-		switch req.URL.String() {
-		case "/subjects/test1/versions/1":
-			// Send response to be tested
-			rw.Write(response)
-		default:
-			require.Fail(t, "unhandled request")
-		}
+		srClient := CreateSchemaRegistryClient(server.URL)
+		srClient.CodecCreationEnabled(false)
+		schema, err := srClient.GetSchemaByVersion("test1", 1)
 
-	}))
+		// Test response
+		assert.NoError(t, err)
 
-	srClient := CreateSchemaRegistryClient(server.URL)
-	srClient.CodecCreationEnabled(false)
-	schema, err := srClient.GetSchemaByVersionWithArbitrarySubject("test1", 1)
-
-	// Test response
-	assert.NoError(t, err)
-	assert.Equal(t, schema.ID(), 1)
-	assert.Nil(t, schema.codec)
-	assert.Equal(t, schema.Schema(), "payload")
-	assert.Equal(t, schema.Version(), 1)
-	assert.Equal(t, schema.References(), refs)
-	assert.Equal(t, len(schema.References()), 2)
+		assert.Equal(t, 1, *call)
+		assert.Equal(t, schema.ID(), 1)
+		assert.Nil(t, schema.codec)
+		assert.Equal(t, schema.Schema(), "payload")
+		assert.Equal(t, schema.Version(), 1)
+		assert.Nil(t, schema.References())
+		assert.Equal(t, len(schema.References()), 0)
+	}
 }
 
-func TestSchemaRegistryClient_GetSchemaByVersionWithArbitrarySubjectWithoutReferences(t *testing.T) {
-	server, call := mockServerWithSchemaResponse(t,"test1", "1", schemaResponse{
-		Subject:    "test1",
-		Version:    1,
-		Schema:     "payload",
-		ID:         1,
-		References: nil,
-	})
+func TestSchemaRegistryClient_GetSchemaByVersionReturnsValueFromCache(t *testing.T) {
+	{
+		server, call := mockServerWithSchemaResponse(t, "test1", "1", schemaResponse{
+			Subject:    "test1",
+			Version:    1,
+			Schema:     "payload",
+			ID:         1,
+			References: nil,
+		})
 
-	srClient := CreateSchemaRegistryClient(server.URL)
-	srClient.CodecCreationEnabled(false)
-	schema, err := srClient.GetSchemaByVersionWithArbitrarySubject("test1", 1)
+		srClient := CreateSchemaRegistryClient(server.URL)
+		schema1, err := srClient.GetSchemaByVersion("test1", 1)
 
-	// Test response
-	assert.NoError(t, err)
+		// Test response
+		assert.NoError(t, err)
 
-	assert.Equal(t, 1, *call)
-	assert.Equal(t, schema.ID(), 1)
-	assert.Nil(t, schema.codec)
-	assert.Equal(t, schema.Schema(), "payload")
-	assert.Equal(t, schema.Version(), 1)
-	assert.Nil(t, schema.References())
-	assert.Equal(t, len(schema.References()), 0)
-}
+		// When called twice
+		schema2, err := srClient.GetSchemaByVersion("test1", 1)
 
-func TestSchemaRegistryClient_GetSchemaByVersionWithArbitrarySubjectReturnsValueFromCache(t *testing.T) {
-	server, call := mockServerWithSchemaResponse(t,"test1", "1", schemaResponse{
-		Subject:    "test1",
-		Version:    1,
-		Schema:     "payload",
-		ID:         1,
-		References: nil,
-	})
-
-	srClient := CreateSchemaRegistryClient(server.URL)
-	schema1, err := srClient.GetSchemaByVersionWithArbitrarySubject("test1", 1)
-
-	// Test response
-	assert.NoError(t, err)
-
-	// When called twice
-	schema2, err := srClient.GetSchemaByVersionWithArbitrarySubject("test1", 1)
-
-	assert.NoError(t, err)
-	assert.Equal(t, 1, *call)
-	assert.Equal(t, schema1, schema2)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, *call)
+		assert.Equal(t, schema1, schema2)
+	}
 }
 
 func TestSchemaRegistryClient_GetLatestSchemaReturnsValueFromCache(t *testing.T) {
-	server, call := mockServerWithSchemaResponse(t,"test1-value", "latest", schemaResponse{
+	server, call := mockServerWithSchemaResponse(t, "test1-value", "latest", schemaResponse{
 		Subject:    "test1",
 		Version:    1,
 		Schema:     "payload",
@@ -204,19 +210,18 @@ func TestSchemaRegistryClient_GetLatestSchemaReturnsValueFromCache(t *testing.T)
 	})
 
 	srClient := CreateSchemaRegistryClient(server.URL)
-	schema1, err := srClient.GetLatestSchema("test1", false)
+	schema1, err := srClient.GetLatestSchema("test1-value")
 
 	// Test response
 	assert.NoError(t, err)
 
 	// When called twice
-	schema2, err := srClient.GetLatestSchema("test1", false)
+	schema2, err := srClient.GetLatestSchema("test1-value")
 
 	assert.NoError(t, err)
 	assert.Equal(t, 1, *call)
 	assert.Equal(t, schema1, schema2)
 }
-
 
 func mockServerWithSchemaResponse(t *testing.T, subject string, version string, schemaResponse schemaResponse) (*httptest.Server, *int) {
 	var count int
