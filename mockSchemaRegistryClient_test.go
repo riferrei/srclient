@@ -53,15 +53,15 @@ func init() {
 	srClient = CreateMockSchemaRegistryClient("mock://testingUrl")
 
 	// Test Schema and Value Schema creation
-	_, _ = srClient.CreateSchema("test1", schema, Avro, false)
-	_, _ = srClient.CreateSchema("test1", schema, Avro, true)
+	_, _ = srClient.CreateSchema("test1-value", schema, Avro)
+	_, _ = srClient.CreateSchema("test1-key", schema, Avro)
 	// Test version upgrades for key and value and more registration
-	_, _ = srClient.CreateSchema("test1", schema2, Avro, false)
-	_, _ = srClient.CreateSchema("test1", schema2, Avro, true)
+	_, _ = srClient.CreateSchema("test1-value", schema2, Avro)
+	_, _ = srClient.CreateSchema("test1-key", schema2, Avro)
 
 	// Test version upgrades for key and value and more registration (arbitrary subject)
-	_, _ = srClient.CreateSchemaWithArbitrarySubject("test1_arb", schema3, Avro)
-	_, _ = srClient.CreateSchemaWithArbitrarySubject("test1_arb", schema4, Avro)
+	_, _ = srClient.CreateSchema("test1_arb", schema3, Avro)
+	_, _ = srClient.CreateSchema("test1_arb", schema4, Avro)
 }
 
 func TestMockSchemaRegistryClient_CreateSchema(t *testing.T) {
@@ -82,14 +82,6 @@ func TestMockSchemaRegistryClient_CreateSchema(t *testing.T) {
 	schemaReg4, _ := srClient.GetSchema(4)
 	assert.Equal(t, schema2, schemaReg4.schema)
 	assert.Equal(t, 2, schemaReg4.version)
-
-	// Test registering already registered schema
-	_, err := srClient.CreateSchema("test1", schema, Avro, true)
-	assert.EqualError(t, err, "POST \"mock://testingUrl/subjects/test1-key/versions\": Schema already registered with id 2")
-}
-
-func TestMockSchemaRegistryClient_CreateSchema_ArbitrarySubject(t *testing.T) {
-
 	schemaReg5, _ := srClient.GetSchema(5)
 	assert.Equal(t, schema3, schemaReg5.schema)
 	assert.Equal(t, 1, schemaReg5.version)
@@ -98,24 +90,25 @@ func TestMockSchemaRegistryClient_CreateSchema_ArbitrarySubject(t *testing.T) {
 	assert.Equal(t, 2, schemaReg6.version)
 
 	// Test registering already registered schema
-	_, err := srClient.CreateSchemaWithArbitrarySubject("test1_arb", schema3, Avro)
+	_, err := srClient.CreateSchema("test1-key", schema, Avro)
+	assert.EqualError(t, err, "POST \"mock://testingUrl/subjects/test1-key/versions\": Schema already registered with id 2")
+
+	// Test registering already registered schema
+	_, err = srClient.CreateSchema("test1_arb", schema3, Avro)
 	assert.EqualError(t, err, "POST \"mock://testingUrl/subjects/test1_arb/versions\": Schema already registered with id 5")
 }
 
 func TestMockSchemaRegistryClient_GetLatestSchema(t *testing.T) {
 
-	latest, err := srClient.GetLatestSchema("test1", true)
+	latest, err := srClient.GetLatestSchema("test1-key")
 	if err != nil {
 		fmt.Println(err.Error())
 		t.Fail()
 	} else {
 		assert.Equal(t, schema2, latest.schema)
 	}
-}
 
-func TestMockSchemaRegistryClient_GetLatestSchema_ArbitrarySubject(t *testing.T) {
-
-	latest, err := srClient.GetLatestSchemaWithArbitrarySubject("test1_arb")
+	latest, err = srClient.GetLatestSchema("test1_arb")
 	if err != nil {
 		fmt.Println(err.Error())
 		t.Fail()
@@ -125,22 +118,18 @@ func TestMockSchemaRegistryClient_GetLatestSchema_ArbitrarySubject(t *testing.T)
 }
 
 func TestMockSchemaRegistryClient_GetSchemaVersions(t *testing.T) {
-	versions, _ := srClient.GetSchemaVersions("test1", true)
+	versions, _ := srClient.GetSchemaVersions("test1-key")
 	assert.Equal(t, 2, len(versions))
-}
 
-func TestMockSchemaRegistryClient_GetSchemaVersions_ArbitrarySubject(t *testing.T) {
-	versions, _ := srClient.GetSchemaVersionsWithArbitrarySubject("test1_arb")
+	versions, _ = srClient.GetSchemaVersions("test1_arb")
 	assert.Equal(t, 2, len(versions))
 }
 
 func TestMockSchemaRegistryClient_GetSchemaByVersion(t *testing.T) {
-	oldVersion, _ := srClient.GetSchemaByVersion("test1", 1, false)
+	oldVersion, _ := srClient.GetSchemaByVersion("test1-value", 1)
 	assert.Equal(t, schema, oldVersion.schema)
-}
 
-func TestMockSchemaRegistryClient_GetSchemaByVersion_ArbitrarySubject(t *testing.T) {
-	oldVersion, _ := srClient.GetSchemaByVersionWithArbitrarySubject("test1_arb", 1)
+	oldVersion, _ = srClient.GetSchemaByVersion("test1_arb", 1)
 	assert.Equal(t, schema3, oldVersion.schema)
 }
 

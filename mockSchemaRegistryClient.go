@@ -47,22 +47,7 @@ we set this schema as the first version of the subject and store it in memory.
 
 Note that there is no enforcement of schema compatibility, any schema goes for all subjects.
 */
-func (mck MockSchemaRegistryClient) CreateSchema(subject string, schema string, schemaType SchemaType, isKey bool, references ...Reference) (*Schema, error) {
-	concreteSubject := getConcreteSubject(subject, isKey)
-
-	return mck.CreateSchemaWithArbitrarySubject(concreteSubject, schema, schemaType, references...)
-}
-
-/*
-Mock Schema creation and registration. CreateSchema behaves in two possible ways according to the scenario:
-1. The schema being registered is for an already existing `concrete subject`. In that case,
-we increase our schemaID counter and register the schema under that subject in memory.
-2. The schema being registered is for a previously unknown `concrete subject`. In that case,
-we set this schema as the first version of the subject and store it in memory.
-
-Note that there is no enforcement of schema compatibility, any schema goes for all subjects.
-*/
-func (mck MockSchemaRegistryClient) CreateSchemaWithArbitrarySubject(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error) {
+func (mck MockSchemaRegistryClient) CreateSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error) {
 	switch schemaType {
 	case Avro, Json:
 		compiledRegex := regexp.MustCompile(`\r?\n`)
@@ -116,30 +101,14 @@ func (mck MockSchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 }
 
 // Returns the highest ordinal version of a Schema for a given `concrete subject`
-func (mck MockSchemaRegistryClient) GetLatestSchema(subject string, isKey bool) (*Schema, error) {
-	versions, getSchemaVersionErr := mck.GetSchemaVersions(subject, isKey)
+func (mck MockSchemaRegistryClient) GetLatestSchema(subject string) (*Schema, error) {
+	versions, getSchemaVersionErr := mck.GetSchemaVersions(subject)
 	if getSchemaVersionErr != nil {
 		return nil, getSchemaVersionErr
 	}
 
 	latestVersion := versions[len(versions)-1]
-	thisSchema, err := mck.GetSchemaByVersion(subject, latestVersion, isKey)
-	if err != nil {
-		return nil, err
-	}
-
-	return thisSchema, nil
-}
-
-// Returns the highest ordinal version of a Schema for a given `concrete subject`
-func (mck MockSchemaRegistryClient) GetLatestSchemaWithArbitrarySubject(subject string) (*Schema, error) {
-	versions, getSchemaVersionErr := mck.GetSchemaVersionsWithArbitrarySubject(subject)
-	if getSchemaVersionErr != nil {
-		return nil, getSchemaVersionErr
-	}
-
-	latestVersion := versions[len(versions)-1]
-	thisSchema, err := mck.GetSchemaByVersionWithArbitrarySubject(subject, latestVersion)
+	thisSchema, err := mck.GetSchemaByVersion(subject, latestVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -148,27 +117,13 @@ func (mck MockSchemaRegistryClient) GetLatestSchemaWithArbitrarySubject(subject 
 }
 
 // Returns the array of versions this subject has previously registered
-func (mck MockSchemaRegistryClient) GetSchemaVersions(subject string, isKey bool) ([]int, error) {
-	concreteSubject := getConcreteSubject(subject, isKey)
-	versions := mck.allVersions(concreteSubject)
-	return versions, nil
-}
-
-// Returns the array of versions this subject has previously registered
-func (mck MockSchemaRegistryClient) GetSchemaVersionsWithArbitrarySubject(subject string) ([]int, error) {
+func (mck MockSchemaRegistryClient) GetSchemaVersions(subject string) ([]int, error) {
 	versions := mck.allVersions(subject)
 	return versions, nil
 }
 
 // Returns the given Schema according to the passed in subject and version number
-func (mck MockSchemaRegistryClient) GetSchemaByVersion(subject string, version int, isKey bool) (*Schema, error) {
-	concreteSubject := getConcreteSubject(subject, isKey)
-
-	return mck.GetSchemaByVersionWithArbitrarySubject(concreteSubject, version)
-}
-
-// Returns the given Schema according to the passed in subject and version number
-func (mck MockSchemaRegistryClient) GetSchemaByVersionWithArbitrarySubject(subject string, version int) (*Schema, error) {
+func (mck MockSchemaRegistryClient) GetSchemaByVersion(subject string, version int) (*Schema, error) {
 	schema := &Schema{}
 	schemaVersionMap, ok := mck.schemaCache[subject]
 	if !ok {
@@ -231,7 +186,7 @@ func (mck MockSchemaRegistryClient) CodecCreationEnabled(value bool) {
 	// Nothing because codecs do not matter in the inMem storage of schemas
 }
 
-func (mck MockSchemaRegistryClient) IsSchemaCompatible(subject, schema, version string, schemaType SchemaType, isKey bool) (bool, error) {
+func (mck MockSchemaRegistryClient) IsSchemaCompatible(subject, schema, version string, schemaType SchemaType) (bool, error) {
 	return false, errors.New("mock schema registry client can't check for schema compatibility")
 }
 
