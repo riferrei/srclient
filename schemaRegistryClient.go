@@ -124,14 +124,19 @@ const (
 // using this client can retrieve data about schemas, which
 // in turn can be used to serialize and deserialize records.
 func CreateSchemaRegistryClient(schemaRegistryURL string) *SchemaRegistryClient {
+	return CreateSchemaRegistryClientWithOptions(schemaRegistryURL, &http.Client{Timeout: 5 * time.Second}, 16)
+}
+
+// CreateSchemaRegistryClientWithOptions provides the ability to pass the http.Client to be used, as well as the semaphoreWeight for concurrent requests
+func CreateSchemaRegistryClientWithOptions(schemaRegistryURL string, client *http.Client, semaphoreWeight int) *SchemaRegistryClient {
 	return &SchemaRegistryClient{
 		schemaRegistryURL:    schemaRegistryURL,
-		httpClient:           &http.Client{Timeout: 5 * time.Second},
+		httpClient:           client,
 		cachingEnabled:       true,
 		codecCreationEnabled: false,
 		idSchemaCache:        make(map[int]*Schema),
 		subjectSchemaCache:   make(map[string]*Schema),
-		sem:                  semaphore.NewWeighted(16),
+		sem:                  semaphore.NewWeighted(int64(semaphoreWeight)),
 	}
 }
 
