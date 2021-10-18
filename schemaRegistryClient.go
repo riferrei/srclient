@@ -21,6 +21,8 @@ import (
 // definition of the operations that
 // this Schema Registry client provides.
 type ISchemaRegistryClient interface {
+	GetGlobalCompatibilityLevel() (*CompatibilityLevel, error)
+	GetCompatibilityLevel(subject string, defaultToGlobal bool) (*CompatibilityLevel, error)
 	GetSubjects() ([]string, error)
 	GetSchema(schemaID int) (*Schema, error)
 	GetLatestSchema(subject string) (*Schema, error)
@@ -69,6 +71,22 @@ func (s SchemaType) String() string {
 	return string(s)
 }
 
+type CompatibilityLevel string
+
+const (
+	None               CompatibilityLevel = "NONE"
+	Backward           CompatibilityLevel = "BACKWARD"
+	BackwardTransitive CompatibilityLevel = "BACKWARD_TRANSITIVE"
+	Forward            CompatibilityLevel = "FORWARD"
+	ForwardTransitive  CompatibilityLevel = "FORWARD_TRANSITIVE"
+	Full               CompatibilityLevel = "FULL"
+	FullTransitive     CompatibilityLevel = "FULL_TRANSITIVE"
+)
+
+func (s CompatibilityLevel) String() string {
+	return string(s)
+}
+
 // Schema references use the import statement of Protobuf and
 // the $ref field of JSON Schema. They are defined by the name
 // of the import or $ref and the associated subject in the registry.
@@ -111,11 +129,17 @@ type isCompatibleResponse struct {
 	IsCompatible bool `json:"is_compatible"`
 }
 
+type configResponse struct {
+	CompatibilityLevel CompatibilityLevel `json:"compatibilityLevel"`
+}
+
 const (
 	schemaByID       = "/schemas/ids/%d"
 	subjectVersions  = "/subjects/%s/versions"
 	subjectByVersion = "/subjects/%s/versions/%s"
 	subjects         = "/subjects"
+	config           = "/config"
+	configBySubject  = "/config/%s"
 	contentType      = "application/vnd.schemaregistry.v1+json"
 )
 
@@ -204,6 +228,39 @@ func (client *SchemaRegistryClient) GetSchemaVersions(subject string) ([]int, er
 	}
 
 	return versions, nil
+}
+
+// GetGlobalCompatibilityLevel returns the global compatibility level of the registry.
+func (client *SchemaRegistryClient) GetGlobalCompatibilityLevel() (*CompatibilityLevel, error) {
+	resp, err := client.httpRequest("GET", config, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var configResponse = new(configResponse)
+	err = json.Unmarshal(resp, &configResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return &configResponse.CompatibilityLevel, nil
+}
+
+// GetCompatibilityLevel returns the compatibility level of the subject.
+// If defaultToGlobal is set to true and no compatibility level is set on the subject, the global compatibility level is returned.
+func (client *SchemaRegistryClient) GetCompatibilityLevel(subject string, defaultToGlobal bool) (*CompatibilityLevel, error) {
+	resp, err := client.httpRequest("GET", fmt.Sprintf(configBySubject+"?defaultToGlobal=%t", subject, defaultToGlobal), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var configResponse = new(configResponse)
+	err = json.Unmarshal(resp, &configResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return &configResponse.CompatibilityLevel, nil
 }
 
 // GetSubjects returns a list of all subjects in the registry

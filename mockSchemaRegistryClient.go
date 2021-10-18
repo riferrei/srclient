@@ -167,6 +167,14 @@ func (mck MockSchemaRegistryClient) DeleteSubject(subject string, _ bool) error 
 	return nil
 }
 
+func (mck MockSchemaRegistryClient) GetGlobalCompatibilityLevel() (*CompatibilityLevel, error) {
+	return nil, errors.New("mock schema registry client can't return global compatibility level")
+}
+
+func (mck MockSchemaRegistryClient) GetCompatibilityLevel(subject string, defaultToGlobal bool) (*CompatibilityLevel, error) {
+	return nil, errors.New("mock schema registry client can't return compatibility level")
+}
+
 /*
 The classes below are implemented to accommodate ISchemaRegistryClient; However, they do nothing.
 */
