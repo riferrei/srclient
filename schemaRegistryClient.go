@@ -21,7 +21,7 @@ import (
 // definition of the operations that
 // this Schema Registry client provides.
 type ISchemaRegistryClient interface {
-	GetSubjects() ([]string, error)
+	GetSubjects(deleted bool) ([]string, error)
 	GetSchema(schemaID int) (*Schema, error)
 	GetLatestSchema(subject string) (*Schema, error)
 	GetSchemaVersions(subject string) ([]int, error)
@@ -207,8 +207,15 @@ func (client *SchemaRegistryClient) GetSchemaVersions(subject string) ([]int, er
 }
 
 // GetSubjects returns a list of all subjects in the registry
-func (client *SchemaRegistryClient) GetSubjects() ([]string, error) {
-	resp, err := client.httpRequest("GET", subjects, nil)
+// if deleted is set to true, also soft-deleted subjects are returned
+func (client *SchemaRegistryClient) GetSubjects(deleted bool) ([]string, error) {
+	uri := subjects
+
+	if deleted {
+		uri += "?deleted=true"
+	}
+
+	resp, err := client.httpRequest("GET", uri, nil)
 	if err != nil {
 		return nil, err
 	}

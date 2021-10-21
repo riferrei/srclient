@@ -153,7 +153,7 @@ func (mck MockSchemaRegistryClient) GetSchemaByVersion(subject string, version i
 }
 
 // Returns all registered subjects
-func (mck MockSchemaRegistryClient) GetSubjects() ([]string, error) {
+func (mck MockSchemaRegistryClient) GetSubjects(_ bool) ([]string, error) {
 	allSubjects := make([]string, 0, len(mck.schemaCache))
 	for subject := range mck.schemaCache {
 		allSubjects = append(allSubjects, subject)
