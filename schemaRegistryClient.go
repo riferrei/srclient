@@ -29,6 +29,7 @@ type ISchemaRegistryClient interface {
 	GetSchemaVersions(subject string) ([]int, error)
 	GetSchemaByVersion(subject string, version int) (*Schema, error)
 	CreateSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
+	ChangeSubjectCompatibilityLevel(subject string, compatibility CompatibilityLevel) (*CompatibilityLevel, error)
 	DeleteSubject(subject string, permanent bool) error
 	SetCredentials(username string, password string)
 	SetTimeout(timeout time.Duration)
@@ -133,6 +134,12 @@ type configResponse struct {
 	CompatibilityLevel CompatibilityLevel `json:"compatibilityLevel"`
 }
 
+type configChangeRequest struct {
+	CompatibilityLevel CompatibilityLevel `json:"compatibility"`
+}
+
+type configChangeResponse configChangeRequest
+
 const (
 	schemaByID       = "/schemas/ids/%d"
 	subjectVersions  = "/subjects/%s/versions"
@@ -228,6 +235,29 @@ func (client *SchemaRegistryClient) GetSchemaVersions(subject string) ([]int, er
 	}
 
 	return versions, nil
+}
+
+// ChangeSubjectCompatibilityLevel changes the compatibility level of the subject.
+func (client *SchemaRegistryClient) ChangeSubjectCompatibilityLevel(subject string, compatibility CompatibilityLevel) (*CompatibilityLevel, error) {
+	configChangeReq := configChangeRequest{CompatibilityLevel: compatibility}
+	configChangeReqBytes, err := json.Marshal(configChangeReq)
+	if err != nil {
+		return nil, err
+	}
+	payload := bytes.NewBuffer(configChangeReqBytes)
+
+	resp, err := client.httpRequest("PUT", fmt.Sprintf(configBySubject, subject), payload)
+	if err != nil {
+		return nil, err
+	}
+
+	var cfgChangeResp = new(configChangeResponse)
+	err = json.Unmarshal(resp, &cfgChangeResp)
+	if err != nil {
+		return nil, err
+	}
+
+	return &cfgChangeResp.CompatibilityLevel, nil
 }
 
 // GetGlobalCompatibilityLevel returns the global compatibility level of the registry.

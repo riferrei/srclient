@@ -167,6 +167,10 @@ func (mck MockSchemaRegistryClient) DeleteSubject(subject string, _ bool) error 
 	return nil
 }
 
+func (mck MockSchemaRegistryClient) ChangeSubjectCompatibilityLevel(subject string, compatibility CompatibilityLevel) (*CompatibilityLevel, error) {
+	return nil, errors.New("mock schema registry client can't change subject compatibility level")
+}
+
 func (mck MockSchemaRegistryClient) GetGlobalCompatibilityLevel() (*CompatibilityLevel, error) {
 	return nil, errors.New("mock schema registry client can't return global compatibility level")
 }
