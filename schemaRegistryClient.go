@@ -21,12 +21,15 @@ import (
 // definition of the operations that
 // this Schema Registry client provides.
 type ISchemaRegistryClient interface {
+	GetGlobalCompatibilityLevel() (*CompatibilityLevel, error)
+	GetCompatibilityLevel(subject string, defaultToGlobal bool) (*CompatibilityLevel, error)
 	GetSubjects() ([]string, error)
 	GetSchema(schemaID int) (*Schema, error)
 	GetLatestSchema(subject string) (*Schema, error)
 	GetSchemaVersions(subject string) ([]int, error)
 	GetSchemaByVersion(subject string, version int) (*Schema, error)
 	CreateSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
+	ChangeSubjectCompatibilityLevel(subject string, compatibility CompatibilityLevel) (*CompatibilityLevel, error)
 	DeleteSubject(subject string, permanent bool) error
 	SetCredentials(username string, password string)
 	SetTimeout(timeout time.Duration)
@@ -66,6 +69,22 @@ const (
 )
 
 func (s SchemaType) String() string {
+	return string(s)
+}
+
+type CompatibilityLevel string
+
+const (
+	None               CompatibilityLevel = "NONE"
+	Backward           CompatibilityLevel = "BACKWARD"
+	BackwardTransitive CompatibilityLevel = "BACKWARD_TRANSITIVE"
+	Forward            CompatibilityLevel = "FORWARD"
+	ForwardTransitive  CompatibilityLevel = "FORWARD_TRANSITIVE"
+	Full               CompatibilityLevel = "FULL"
+	FullTransitive     CompatibilityLevel = "FULL_TRANSITIVE"
+)
+
+func (s CompatibilityLevel) String() string {
 	return string(s)
 }
 
@@ -111,11 +130,23 @@ type isCompatibleResponse struct {
 	IsCompatible bool `json:"is_compatible"`
 }
 
+type configResponse struct {
+	CompatibilityLevel CompatibilityLevel `json:"compatibilityLevel"`
+}
+
+type configChangeRequest struct {
+	CompatibilityLevel CompatibilityLevel `json:"compatibility"`
+}
+
+type configChangeResponse configChangeRequest
+
 const (
 	schemaByID       = "/schemas/ids/%d"
 	subjectVersions  = "/subjects/%s/versions"
 	subjectByVersion = "/subjects/%s/versions/%s"
 	subjects         = "/subjects"
+	config           = "/config"
+	configBySubject  = "/config/%s"
 	contentType      = "application/vnd.schemaregistry.v1+json"
 )
 
@@ -204,6 +235,62 @@ func (client *SchemaRegistryClient) GetSchemaVersions(subject string) ([]int, er
 	}
 
 	return versions, nil
+}
+
+// ChangeSubjectCompatibilityLevel changes the compatibility level of the subject.
+func (client *SchemaRegistryClient) ChangeSubjectCompatibilityLevel(subject string, compatibility CompatibilityLevel) (*CompatibilityLevel, error) {
+	configChangeReq := configChangeRequest{CompatibilityLevel: compatibility}
+	configChangeReqBytes, err := json.Marshal(configChangeReq)
+	if err != nil {
+		return nil, err
+	}
+	payload := bytes.NewBuffer(configChangeReqBytes)
+
+	resp, err := client.httpRequest("PUT", fmt.Sprintf(configBySubject, subject), payload)
+	if err != nil {
+		return nil, err
+	}
+
+	var cfgChangeResp = new(configChangeResponse)
+	err = json.Unmarshal(resp, &cfgChangeResp)
+	if err != nil {
+		return nil, err
+	}
+
+	return &cfgChangeResp.CompatibilityLevel, nil
+}
+
+// GetGlobalCompatibilityLevel returns the global compatibility level of the registry.
+func (client *SchemaRegistryClient) GetGlobalCompatibilityLevel() (*CompatibilityLevel, error) {
+	resp, err := client.httpRequest("GET", config, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var configResponse = new(configResponse)
+	err = json.Unmarshal(resp, &configResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return &configResponse.CompatibilityLevel, nil
+}
+
+// GetCompatibilityLevel returns the compatibility level of the subject.
+// If defaultToGlobal is set to true and no compatibility level is set on the subject, the global compatibility level is returned.
+func (client *SchemaRegistryClient) GetCompatibilityLevel(subject string, defaultToGlobal bool) (*CompatibilityLevel, error) {
+	resp, err := client.httpRequest("GET", fmt.Sprintf(configBySubject+"?defaultToGlobal=%t", subject, defaultToGlobal), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var configResponse = new(configResponse)
+	err = json.Unmarshal(resp, &configResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return &configResponse.CompatibilityLevel, nil
 }
 
 // GetSubjects returns a list of all subjects in the registry
