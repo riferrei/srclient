@@ -24,6 +24,7 @@ type ISchemaRegistryClient interface {
 	GetGlobalCompatibilityLevel() (*CompatibilityLevel, error)
 	GetCompatibilityLevel(subject string, defaultToGlobal bool) (*CompatibilityLevel, error)
 	GetSubjects() ([]string, error)
+	GetSubjectsIncludingDeleted() ([]string, error)
 	GetSchema(schemaID int) (*Schema, error)
 	GetLatestSchema(subject string) (*Schema, error)
 	GetSchemaVersions(subject string) ([]int, error)
@@ -296,6 +297,20 @@ func (client *SchemaRegistryClient) GetCompatibilityLevel(subject string, defaul
 // GetSubjects returns a list of all subjects in the registry
 func (client *SchemaRegistryClient) GetSubjects() ([]string, error) {
 	resp, err := client.httpRequest("GET", subjects, nil)
+	if err != nil {
+		return nil, err
+	}
+	var allSubjects = []string{}
+	err = json.Unmarshal(resp, &allSubjects)
+	if err != nil {
+		return nil, err
+	}
+	return allSubjects, nil
+}
+
+// GetSubjectsIncludingDeleted returns a list of all subjects in the registry including those which have been soft deleted
+func (client *SchemaRegistryClient) GetSubjectsIncludingDeleted() ([]string, error) {
+	resp, err := client.httpRequest("GET", subjects+"?deleted=true", nil)
 	if err != nil {
 		return nil, err
 	}

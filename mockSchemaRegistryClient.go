@@ -161,6 +161,11 @@ func (mck MockSchemaRegistryClient) GetSubjects() ([]string, error) {
 	return allSubjects, nil
 }
 
+// GetSubjectsIncludingDeleted returns all registered subjects including those which have been soft deleted
+func (mck MockSchemaRegistryClient) GetSubjectsIncludingDeleted() ([]string, error) {
+	return nil, errors.New("mock schema registry client can't return soft deleted subjects")
+}
+
 // DeleteSubject removes given subject from cache
 func (mck MockSchemaRegistryClient) DeleteSubject(subject string, _ bool) error {
 	delete(mck.schemaCache, subject)
