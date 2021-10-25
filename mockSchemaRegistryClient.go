@@ -153,12 +153,17 @@ func (mck MockSchemaRegistryClient) GetSchemaByVersion(subject string, version i
 }
 
 // Returns all registered subjects
-func (mck MockSchemaRegistryClient) GetSubjects(_ bool) ([]string, error) {
+func (mck MockSchemaRegistryClient) GetSubjects() ([]string, error) {
 	allSubjects := make([]string, 0, len(mck.schemaCache))
 	for subject := range mck.schemaCache {
 		allSubjects = append(allSubjects, subject)
 	}
 	return allSubjects, nil
+}
+
+// GetSubjectsIncludingDeleted returns all registered subjects including those which have been soft deleted
+func (mck MockSchemaRegistryClient) GetSubjectsIncludingDeleted() ([]string, error) {
+	return nil, errors.New("mock schema registry client can't return soft deleted subjects")
 }
 
 // DeleteSubject removes given subject from cache

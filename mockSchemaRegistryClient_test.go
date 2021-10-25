@@ -134,7 +134,7 @@ func TestMockSchemaRegistryClient_GetSchemaByVersion(t *testing.T) {
 }
 
 func TestMockSchemaRegistryClient_GetSubjects(t *testing.T) {
-	allSubjects, _ := srClient.GetSubjects(false)
+	allSubjects, _ := srClient.GetSubjects()
 	sort.Strings(allSubjects)
 	assert.Equal(t, allSubjects, []string{"test1-key", "test1-value", "test1_arb"})
 }
