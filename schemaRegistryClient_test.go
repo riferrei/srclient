@@ -190,6 +190,45 @@ func TestSchemaRegistryClient_LookupSchemaWithoutReferences(t *testing.T) {
 		assert.Equal(t, schema.schema, "test2")
 		assert.Equal(t, schema.version, 1)
 	}
+
+	{
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			var errorResp struct {
+				ErrorCode int    `json:"error_code"`
+				Message   string `json:"message"`
+			}
+			errorResp.ErrorCode = 40401
+			errorResp.Message = "Subject 'test1' not found"
+
+			response, _ := json.Marshal(errorResp)
+			switch req.URL.String() {
+			case "/subjects/test1-value":
+
+				requestPayload := schemaRequest{
+					Schema:     "test2",
+					SchemaType: Avro.String(),
+					References: []Reference{},
+				}
+				expected, _ := json.Marshal(requestPayload)
+				// Test payload
+				assert.Equal(t, bodyToString(req.Body), string(expected))
+				// Send error response to simulate the schema not being found
+				rw.WriteHeader(http.StatusNotFound)
+				rw.Write(response)
+			default:
+				assert.Error(t, errors.New("unhandled request"))
+			}
+
+		}))
+
+		srClient := CreateSchemaRegistryClient(server.URL)
+		srClient.CodecCreationEnabled(false)
+		_, err := srClient.LookupSchema("test1-value", "test2", Avro)
+
+		// Test response
+		assert.Error(t, err)
+		assert.Equal(t, err.Error(), "404 Not Found: Subject 'test1' not found")
+	}
 }
 
 func TestSchemaRegistryClient_GetSchemaByVersionWithReferences(t *testing.T) {
