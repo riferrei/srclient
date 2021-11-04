@@ -85,20 +85,6 @@ func (mck MockSchemaRegistryClient) CreateSchema(subject string, schema string, 
 	}
 }
 
-func (mck MockSchemaRegistryClient) LookupSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error) {
-	switch schemaType {
-	case Avro, Json:
-		compiledRegex := regexp.MustCompile(`\r?\n`)
-		schema = compiledRegex.ReplaceAllString(schema, " ")
-	case Protobuf:
-		break
-	default:
-		return nil, fmt.Errorf("invalid schema type. valid values are Avro, Json, or Protobuf")
-	}
-
-	return nil, nil
-}
-
 // Returns a Schema for the given ID
 func (mck MockSchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 	posErr := url.Error{
@@ -219,6 +205,10 @@ func (mck MockSchemaRegistryClient) CodecCreationEnabled(value bool) {
 
 func (mck MockSchemaRegistryClient) IsSchemaCompatible(subject, schema, version string, schemaType SchemaType) (bool, error) {
 	return false, errors.New("mock schema registry client can't check for schema compatibility")
+}
+
+func (mck MockSchemaRegistryClient) LookupSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error) {
+	return nil, errors.New("mock schema registry client can't lookup schema")
 }
 
 /*
