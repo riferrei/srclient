@@ -109,6 +109,50 @@ func TestSchemaRegistryClient_CreateSchemaWithoutReferences(t *testing.T) {
 	}
 }
 
+func TestSchemaRegistryClient_LookupSchemaWithoutReferences(t *testing.T) {
+
+	{
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			responsePayload := schemaResponse{
+				Subject: "test1",
+				Version: 1,
+				Schema:  "test2",
+				ID:      1,
+			}
+			response, _ := json.Marshal(responsePayload)
+			switch req.URL.String() {
+			case "/subjects/test1-value":
+
+				requestPayload := schemaRequest{
+					Schema:     "test2",
+					SchemaType: Protobuf.String(),
+					References: []Reference{},
+				}
+				expected, _ := json.Marshal(requestPayload)
+				// Test payload
+				assert.Equal(t, bodyToString(req.Body), string(expected))
+				// Send response to be tested
+				rw.Write(response)
+			default:
+				assert.Error(t, errors.New("unhandled request"))
+			}
+
+		}))
+
+		srClient := CreateSchemaRegistryClient(server.URL)
+		srClient.CodecCreationEnabled(false)
+		schema, err := srClient.LookupSchema("test1-value", "test2", Protobuf)
+
+		// Test response
+		assert.NoError(t, err)
+		assert.Equal(t, schema.id, 1)
+		assert.Nil(t, schema.codec)
+		assert.Equal(t, schema.schema, "test2")
+		assert.Equal(t, schema.version, 1)
+	}
+
+}
+
 func TestSchemaRegistryClient_GetSchemaByVersionWithReferences(t *testing.T) {
 	{
 		refs := []Reference{
