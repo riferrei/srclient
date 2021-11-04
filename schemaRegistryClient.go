@@ -430,7 +430,7 @@ func (client *SchemaRegistryClient) LookupSchema(subject string, schema string, 
 	}
 
 	var codec *goavro.Codec
-	if client.getCodecCreationEnabled() {
+	if client.getCodecCreationEnabled() && schemaType == Avro {
 		codec, err = goavro.NewCodec(schemaResp.Schema)
 		if err != nil {
 			return nil, err
