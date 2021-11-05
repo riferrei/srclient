@@ -30,6 +30,7 @@ type ISchemaRegistryClient interface {
 	GetSchemaVersions(subject string) ([]int, error)
 	GetSchemaByVersion(subject string, version int) (*Schema, error)
 	CreateSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
+	LookupSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
 	ChangeSubjectCompatibilityLevel(subject string, compatibility CompatibilityLevel) (*CompatibilityLevel, error)
 	DeleteSubject(subject string, permanent bool) error
 	SetCredentials(username string, password string)
@@ -143,6 +144,7 @@ type configChangeResponse configChangeRequest
 
 const (
 	schemaByID       = "/schemas/ids/%d"
+	subjectBySubject = "/subjects/%s"
 	subjectVersions  = "/subjects/%s/versions"
 	subjectByVersion = "/subjects/%s/versions/%s"
 	subjects         = "/subjects"
@@ -392,6 +394,73 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 	}
 
 	return newSchema, nil
+}
+
+// LookupSchema looks up the schema by subject and schema string. If it finds the schema it returns it with all its associated information.
+func (client *SchemaRegistryClient) LookupSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error) {
+	switch schemaType {
+	case Avro, Json:
+		compiledRegex := regexp.MustCompile(`\r?\n`)
+		schema = compiledRegex.ReplaceAllString(schema, " ")
+	case Protobuf:
+		break
+	default:
+		return nil, fmt.Errorf("invalid schema type. valid values are Avro, Json, or Protobuf")
+	}
+
+	if references == nil {
+		references = make([]Reference, 0)
+	}
+
+	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType.String(), References: references}
+	schemaBytes, err := json.Marshal(schemaReq)
+	if err != nil {
+		return nil, err
+	}
+	payload := bytes.NewBuffer(schemaBytes)
+	resp, err := client.httpRequest("POST", fmt.Sprintf(subjectBySubject, subject), payload)
+	if err != nil {
+		return nil, err
+	}
+
+	schemaResp := new(schemaResponse)
+	err = json.Unmarshal(resp, &schemaResp)
+	if err != nil {
+		return nil, err
+	}
+
+	var codec *goavro.Codec
+	if client.getCodecCreationEnabled() && schemaType == Avro {
+		codec, err = goavro.NewCodec(schemaResp.Schema)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var gotSchema = &Schema{
+		id:         schemaResp.ID,
+		schema:     schemaResp.Schema,
+		version:    schemaResp.Version,
+		references: schemaResp.References,
+		codec:      codec,
+	}
+
+	if client.getCachingEnabled() {
+
+		// Update the subject-2-schema cache
+		cacheKey := cacheKey(subject,
+			strconv.Itoa(gotSchema.version))
+		client.subjectSchemaCacheLock.Lock()
+		client.subjectSchemaCache[cacheKey] = gotSchema
+		client.subjectSchemaCacheLock.Unlock()
+
+		// Update the id-2-schema cache
+		client.idSchemaCacheLock.Lock()
+		client.idSchemaCache[gotSchema.id] = gotSchema
+		client.idSchemaCacheLock.Unlock()
+
+	}
+
+	return gotSchema, nil
 }
 
 // IsSchemaCompatible checks if the given schema is compatible with the given subject and version

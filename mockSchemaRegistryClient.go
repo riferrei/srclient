@@ -207,6 +207,10 @@ func (mck MockSchemaRegistryClient) IsSchemaCompatible(subject, schema, version 
 	return false, errors.New("mock schema registry client can't check for schema compatibility")
 }
 
+func (mck MockSchemaRegistryClient) LookupSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error) {
+	return nil, errors.New("mock schema registry client can't lookup schema")
+}
+
 /*
 These classes are written as helpers and therefore, are not exported.
 generateVersion will register a new version of the schema passed, it will NOT do any checks

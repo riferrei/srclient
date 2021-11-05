@@ -109,6 +109,167 @@ func TestSchemaRegistryClient_CreateSchemaWithoutReferences(t *testing.T) {
 	}
 }
 
+func TestSchemaRegistryClient_LookupSchemaWithoutReferences(t *testing.T) {
+
+	{
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			responsePayload := schemaResponse{
+				Subject: "test1",
+				Version: 1,
+				Schema:  "test2",
+				ID:      1,
+			}
+			response, _ := json.Marshal(responsePayload)
+			switch req.URL.String() {
+			case "/subjects/test1-value":
+
+				requestPayload := schemaRequest{
+					Schema:     "test2",
+					SchemaType: Protobuf.String(),
+					References: []Reference{},
+				}
+				expected, _ := json.Marshal(requestPayload)
+				// Test payload
+				assert.Equal(t, bodyToString(req.Body), string(expected))
+				// Send response to be tested
+				rw.Write(response)
+			default:
+				assert.Error(t, errors.New("unhandled request"))
+			}
+
+		}))
+
+		srClient := CreateSchemaRegistryClient(server.URL)
+		srClient.CodecCreationEnabled(false)
+		schema, err := srClient.LookupSchema("test1-value", "test2", Protobuf)
+
+		// Test response
+		assert.NoError(t, err)
+		assert.Equal(t, schema.id, 1)
+		assert.Nil(t, schema.codec)
+		assert.Equal(t, schema.schema, "test2")
+		assert.Equal(t, schema.version, 1)
+	}
+
+	{
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			responsePayload := schemaResponse{
+				Subject: "test1",
+				Version: 1,
+				Schema:  "test2",
+				ID:      1,
+			}
+			response, _ := json.Marshal(responsePayload)
+			switch req.URL.String() {
+			case "/subjects/test1-value":
+
+				requestPayload := schemaRequest{
+					Schema:     "test2",
+					SchemaType: Avro.String(),
+					References: []Reference{},
+				}
+				expected, _ := json.Marshal(requestPayload)
+				// Test payload
+				assert.Equal(t, bodyToString(req.Body), string(expected))
+				// Send response to be tested
+				rw.Write(response)
+			default:
+				assert.Error(t, errors.New("unhandled request"))
+			}
+
+		}))
+
+		srClient := CreateSchemaRegistryClient(server.URL)
+		srClient.CodecCreationEnabled(false)
+		schema, err := srClient.LookupSchema("test1-value", "test2", Avro)
+
+		// Test response
+		assert.NoError(t, err)
+		assert.Equal(t, schema.id, 1)
+		assert.Nil(t, schema.codec)
+		assert.Equal(t, schema.schema, "test2")
+		assert.Equal(t, schema.version, 1)
+	}
+
+	{
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			var errorResp struct {
+				ErrorCode int    `json:"error_code"`
+				Message   string `json:"message"`
+			}
+			errorResp.ErrorCode = 40401
+			errorResp.Message = "Subject 'test1' not found"
+
+			response, _ := json.Marshal(errorResp)
+			switch req.URL.String() {
+			case "/subjects/test1-value":
+
+				requestPayload := schemaRequest{
+					Schema:     "test2",
+					SchemaType: Avro.String(),
+					References: []Reference{},
+				}
+				expected, _ := json.Marshal(requestPayload)
+				// Test payload
+				assert.Equal(t, bodyToString(req.Body), string(expected))
+				// Send error response to simulate the subject not being found
+				rw.WriteHeader(http.StatusNotFound)
+				rw.Write(response)
+			default:
+				assert.Error(t, errors.New("unhandled request"))
+			}
+
+		}))
+
+		srClient := CreateSchemaRegistryClient(server.URL)
+		srClient.CodecCreationEnabled(false)
+		_, err := srClient.LookupSchema("test1-value", "test2", Avro)
+
+		// Test response is 404 error
+		assert.Error(t, err)
+		assert.Equal(t, err.Error(), "404 Not Found: Subject 'test1' not found")
+	}
+
+	{
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			var errorResp struct {
+				ErrorCode int    `json:"error_code"`
+				Message   string `json:"message"`
+			}
+			errorResp.ErrorCode = 40403
+			errorResp.Message = "Schema not found"
+
+			response, _ := json.Marshal(errorResp)
+			switch req.URL.String() {
+			case "/subjects/test1-value":
+
+				requestPayload := schemaRequest{
+					Schema:     "test2",
+					SchemaType: Avro.String(),
+					References: []Reference{},
+				}
+				expected, _ := json.Marshal(requestPayload)
+				// Test payload
+				assert.Equal(t, bodyToString(req.Body), string(expected))
+				// Send error response to simulate the schema not being found
+				rw.WriteHeader(http.StatusNotFound)
+				rw.Write(response)
+			default:
+				assert.Error(t, errors.New("unhandled request"))
+			}
+
+		}))
+
+		srClient := CreateSchemaRegistryClient(server.URL)
+		srClient.CodecCreationEnabled(false)
+		_, err := srClient.LookupSchema("test1-value", "test2", Avro)
+
+		// Test response is 404 error
+		assert.Error(t, err)
+		assert.Equal(t, err.Error(), "404 Not Found: Schema not found")
+	}
+}
+
 func TestSchemaRegistryClient_GetSchemaByVersionWithReferences(t *testing.T) {
 	{
 		refs := []Reference{
