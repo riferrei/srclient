@@ -674,7 +674,6 @@ func (schema *Schema) Codec() *goavro.Codec {
 	return schema.codec
 }
 
-
 func cacheKey(subject string, version string) string {
 	return fmt.Sprintf("%s-%s", subject, version)
 }
