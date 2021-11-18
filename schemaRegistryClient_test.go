@@ -384,6 +384,46 @@ func TestSchemaRegistryClient_GetLatestSchemaReturnsValueFromCache(t *testing.T)
 	assert.Equal(t, schema1, schema2)
 }
 
+func TestSchemaRegistryClient_JsonSchemaParses(t *testing.T) {
+	{
+		server, call := mockServerWithSchemaResponse(t, "test1-value", "latest", schemaResponse{
+			Subject:    "test1",
+			Version:    1,
+			Schema:     "{\"type\": \"object\",\n\"properties\": {\n  \"f1\": {\n    \"type\": \"string\"\n  }}}",
+			ID:         1,
+			References: nil,
+		})
+
+		srClient := CreateSchemaRegistryClient(server.URL)
+		schema1, err := srClient.GetLatestSchema("test1-value")
+
+		// Test valid schema response
+		assert.NoError(t, err)
+		assert.Equal(t, 1, *call)
+		var v interface{}
+		assert.NotNil(t, schema1.JsonSchema())
+		assert.NoError(t, json.Unmarshal([]byte("{\"f1\": \"v1\"}"), &v))
+		assert.NoError(t, schema1.JsonSchema().Validate(v))
+	}
+	{
+		server, call := mockServerWithSchemaResponse(t, "test1-value", "latest", schemaResponse{
+			Subject:    "test1",
+			Version:    1,
+			Schema:     "payload",
+			ID:         1,
+			References: nil,
+		})
+
+		srClient := CreateSchemaRegistryClient(server.URL)
+		schema1, err := srClient.GetLatestSchema("test1-value")
+
+		// Test invalid schema response
+		assert.NoError(t, err)
+		assert.Equal(t, 1, *call)
+		assert.Nil(t, schema1.JsonSchema())
+	}
+}
+
 func mockServerWithSchemaResponse(t *testing.T, subject string, version string, schemaResponse schemaResponse) (*httptest.Server, *int) {
 	var count int
 	return httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {

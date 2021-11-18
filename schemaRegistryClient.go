@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/santhosh-tekuri/jsonschema/v5"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -107,6 +108,7 @@ type Schema struct {
 	version    int
 	references []Reference
 	codec      *goavro.Codec
+	jsonSchema *jsonschema.Schema
 }
 
 type credentials struct {
@@ -662,6 +664,19 @@ func (schema *Schema) Codec() *goavro.Codec {
 		}
 	}
 	return schema.codec
+}
+
+// JsonSchema ensures access to JsonSchema
+// Will try to initialize a new one if it hasn't been initialized before
+// Will return nil if it can't initialize a json schema from the schema
+func (schema *Schema) JsonSchema() *jsonschema.Schema {
+	if schema.jsonSchema == nil {
+		jsonSchema, err := jsonschema.CompileString("schema.json",schema.Schema())
+		if err == nil {
+			schema.jsonSchema = jsonSchema
+		}
+	}
+	return schema.jsonSchema
 }
 
 func cacheKey(subject string, version string) string {
