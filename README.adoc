@@ -1,4 +1,7 @@
 = Schema Registry Client for Go
+
+[![Go Reference](https://pkg.go.dev/badge/github.com/riferrei/srclient.svg)](https://pkg.go.dev/github.com/riferrei/srclient)
+
 :toc:
 
 :imagesdir: images/
