@@ -384,6 +384,45 @@ func TestSchemaRegistryClient_GetLatestSchemaReturnsValueFromCache(t *testing.T)
 	assert.Equal(t, schema1, schema2)
 }
 
+func TestSchemaRegistryClient_GetSchemaType(t *testing.T) {
+	{
+		expectedSchemaType := Json
+		server, call := mockServerWithSchemaResponse(t, "test1-value", "latest", schemaResponse{
+			Subject:    "test1",
+			Version:    1,
+			Schema:     "payload",
+			SchemaType: &expectedSchemaType,
+			ID:         1,
+			References: nil,
+		})
+
+		srClient := CreateSchemaRegistryClient(server.URL)
+		schema, err := srClient.GetLatestSchema("test1-value")
+
+		// Test response
+		assert.NoError(t, err)
+		assert.Equal(t, 1, *call)
+		assert.Equal(t, *schema.SchemaType(), expectedSchemaType)
+	}
+	{
+		server, call := mockServerWithSchemaResponse(t, "test1-value", "latest", schemaResponse{
+			Subject:    "test1",
+			Version:    1,
+			Schema:     "payload",
+			ID:         1,
+			References: nil,
+		})
+
+		srClient := CreateSchemaRegistryClient(server.URL)
+		schema, err := srClient.GetLatestSchema("test1-value")
+
+		// Test response
+		assert.NoError(t, err)
+		assert.Equal(t, 1, *call)
+		assert.Nil(t, schema.SchemaType())
+	}
+}
+
 func TestSchemaRegistryClient_JsonSchemaParses(t *testing.T) {
 	{
 		server, call := mockServerWithSchemaResponse(t, "test1-value", "latest", schemaResponse{
