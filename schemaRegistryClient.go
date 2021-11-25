@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/santhosh-tekuri/jsonschema/v5"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -13,6 +12,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/santhosh-tekuri/jsonschema/v5"
 
 	"github.com/linkedin/goavro/v2"
 	"golang.org/x/sync/semaphore"
@@ -37,6 +38,7 @@ type ISchemaRegistryClient interface {
 	SetCredentials(username string, password string)
 	SetTimeout(timeout time.Duration)
 	CachingEnabled(value bool)
+	ResetCache()
 	CodecCreationEnabled(value bool)
 	IsSchemaCompatible(subject, schema, version string, schemaType SchemaType) (bool, error)
 }
@@ -176,6 +178,18 @@ func CreateSchemaRegistryClientWithOptions(schemaRegistryURL string, client *htt
 		subjectSchemaCache:   make(map[string]*Schema),
 		sem:                  semaphore.NewWeighted(int64(semaphoreWeight)),
 	}
+}
+
+// ResetCache resets the schema caches to be able to get updated schemas.
+func (client *SchemaRegistryClient) ResetCache() {
+
+	client.idSchemaCacheLock.Lock()
+	client.subjectSchemaCacheLock.Lock()
+	client.idSchemaCache = make(map[int]*Schema)
+	client.subjectSchemaCache = make(map[string]*Schema)
+	client.idSchemaCacheLock.Unlock()
+	client.subjectSchemaCacheLock.Unlock()
+
 }
 
 // GetSchema gets the schema associated with the given id.
@@ -681,7 +695,7 @@ func (schema *Schema) Codec() *goavro.Codec {
 // Will return nil if it can't initialize a json schema from the schema
 func (schema *Schema) JsonSchema() *jsonschema.Schema {
 	if schema.jsonSchema == nil {
-		jsonSchema, err := jsonschema.CompileString("schema.json",schema.Schema())
+		jsonSchema, err := jsonschema.CompileString("schema.json", schema.Schema())
 		if err == nil {
 			schema.jsonSchema = jsonSchema
 		}
