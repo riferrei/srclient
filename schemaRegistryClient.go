@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/santhosh-tekuri/jsonschema/v5"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"time"
 
 	"github.com/linkedin/goavro/v2"
+	"github.com/santhosh-tekuri/jsonschema/v5"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -681,7 +681,7 @@ func (schema *Schema) Codec() *goavro.Codec {
 // Will return nil if it can't initialize a json schema from the schema
 func (schema *Schema) JsonSchema() *jsonschema.Schema {
 	if schema.jsonSchema == nil {
-		jsonSchema, err := jsonschema.CompileString("schema.json",schema.Schema())
+		jsonSchema, err := jsonschema.CompileString("schema.json", schema.Schema())
 		if err == nil {
 			schema.jsonSchema = jsonSchema
 		}
@@ -693,15 +693,23 @@ func cacheKey(subject string, version string) string {
 	return fmt.Sprintf("%s-%s", subject, version)
 }
 
+type Error struct {
+	Code    int    `json:"error_code"`
+	Message string `json:"message"`
+	str     *bytes.Buffer
+}
+
+func (e Error) Error() string {
+	return e.str.String()
+}
+
 func createError(resp *http.Response) error {
-	decoder := json.NewDecoder(resp.Body)
-	var errorResp struct {
-		ErrorCode int    `json:"error_code"`
-		Message   string `json:"message"`
+	err := Error{str: bytes.NewBuffer(make([]byte, 0, resp.ContentLength))}
+	decoder := json.NewDecoder(io.TeeReader(resp.Body, err.str))
+	marshalErr := decoder.Decode(&err)
+	if marshalErr != nil {
+		return fmt.Errorf("%s", resp.Status)
 	}
-	err := decoder.Decode(&errorResp)
-	if err == nil {
-		return fmt.Errorf("%s: %s", resp.Status, errorResp.Message)
-	}
-	return fmt.Errorf("%s", resp.Status)
+
+	return err
 }
