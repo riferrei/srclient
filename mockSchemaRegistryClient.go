@@ -199,6 +199,10 @@ func (mck MockSchemaRegistryClient) CachingEnabled(value bool) {
 	// Nothing because caching is always enabled, duh
 }
 
+func (mck MockSchemaRegistryClient) ResetCache() {
+	// Nothing because there is no lock for cache
+}
+
 func (mck MockSchemaRegistryClient) CodecCreationEnabled(value bool) {
 	// Nothing because codecs do not matter in the inMem storage of schemas
 }
