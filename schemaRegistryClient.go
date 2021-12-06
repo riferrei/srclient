@@ -13,8 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/santhosh-tekuri/jsonschema/v5"
-
 	"github.com/linkedin/goavro/v2"
 	"github.com/santhosh-tekuri/jsonschema/v5"
 	"golang.org/x/sync/semaphore"
