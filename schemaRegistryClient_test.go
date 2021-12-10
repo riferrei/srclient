@@ -110,7 +110,8 @@ func TestSchemaRegistryClient_CreateSchemaWithoutReferences(t *testing.T) {
 }
 
 func TestSchemaRegistryClient_LookupSchemaWithoutReferences(t *testing.T) {
-
+	var errorCode int
+	var errorMessage string
 	{
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			responsePayload := schemaResponse{
@@ -192,13 +193,15 @@ func TestSchemaRegistryClient_LookupSchemaWithoutReferences(t *testing.T) {
 	}
 
 	{
+		errorCode = 40401
+		errorMessage = "Subject 'test1' not found"
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			var errorResp struct {
 				ErrorCode int    `json:"error_code"`
 				Message   string `json:"message"`
 			}
-			errorResp.ErrorCode = 40401
-			errorResp.Message = "Subject 'test1' not found"
+			errorResp.ErrorCode = errorCode
+			errorResp.Message = errorMessage
 
 			response, _ := json.Marshal(errorResp)
 			switch req.URL.String() {
@@ -227,17 +230,22 @@ func TestSchemaRegistryClient_LookupSchemaWithoutReferences(t *testing.T) {
 
 		// Test response is 404 error
 		assert.Error(t, err)
-		assert.Equal(t, err.Error(), "404 Not Found: Subject 'test1' not found")
+		castedErr, ok := err.(Error)
+		assert.True(t, ok, "convert api error to Error struct")
+		assert.Equal(t, errorCode, castedErr.Code)
+		assert.Equal(t, errorMessage, castedErr.Message)
 	}
 
 	{
+		errorCode = 40403
+		errorMessage = "Schema not found"
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			var errorResp struct {
 				ErrorCode int    `json:"error_code"`
 				Message   string `json:"message"`
 			}
-			errorResp.ErrorCode = 40403
-			errorResp.Message = "Schema not found"
+			errorResp.ErrorCode = errorCode
+			errorResp.Message = errorMessage
 
 			response, _ := json.Marshal(errorResp)
 			switch req.URL.String() {
@@ -266,7 +274,10 @@ func TestSchemaRegistryClient_LookupSchemaWithoutReferences(t *testing.T) {
 
 		// Test response is 404 error
 		assert.Error(t, err)
-		assert.Equal(t, err.Error(), "404 Not Found: Schema not found")
+		castedErr, ok := err.(Error)
+		assert.True(t, ok, "convert api error to Error struct")
+		assert.Equal(t, errorCode, castedErr.Code)
+		assert.Equal(t, errorMessage, castedErr.Message)
 	}
 }
 
