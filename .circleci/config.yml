@@ -6,11 +6,11 @@ jobs:
     steps:
     - checkout
     - run:
-      name: Download dependencies
-      command: go mod download
+        name: Download dependencies
+        command: go mod download
     - run:
-      name: Test
-      command: go test -cover -v ./...
+        name: Test
+        command: go test -cover -v ./...
 
 workflows:
   version: 2
