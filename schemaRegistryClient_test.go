@@ -10,6 +10,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/linkedin/goavro/v2"
+	"github.com/santhosh-tekuri/jsonschema/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -471,6 +473,67 @@ func TestSchemaRegistryClient_JsonSchemaParses(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 1, *call)
 		assert.Nil(t, schema1.JsonSchema())
+	}
+}
+
+func TestNewSchema(t *testing.T) {
+	const (
+		anId        = 3
+		aSchema     = "payload"
+		aSchemaType = Protobuf
+		aVersion    = 2
+	)
+	var (
+		reference1 Reference = Reference{
+			Name:    "reference1",
+			Subject: "subject1",
+			Version: 5,
+		}
+		reference2 Reference = Reference{
+			Name:    "reference2",
+			Subject: "subject2",
+			Version: 2,
+		}
+		references                    = []Reference{reference1, reference2}
+		jsonSchema *jsonschema.Schema = &jsonschema.Schema{
+			Location: "aLocation",
+		}
+	)
+	mockCodec, _ := goavro.NewCodec(`"string"`)
+	{
+		_, err := NewSchema(anId, "", aSchemaType, aVersion, nil, nil, nil)
+		assert.EqualError(t, err, "schema cannot be nil")
+	}
+	{
+		schema, err := NewSchema(anId, aSchema, aSchemaType, aVersion, nil, nil, nil)
+		assert.NoError(t, err)
+		assert.Equal(t, anId, schema.ID())
+		assert.Equal(t, aSchema, schema.Schema())
+		assert.Equal(t, aSchemaType, *schema.SchemaType())
+		assert.Equal(t, aVersion, schema.Version())
+		assert.Nil(t, schema.References())
+		assert.Nil(t, schema.Codec())
+		assert.Nil(t, schema.JsonSchema())
+
+	}
+	{
+		schema, err := NewSchema(
+			anId,
+			aSchema,
+			aSchemaType,
+			aVersion,
+			references,
+			mockCodec,
+			jsonSchema,
+		)
+		assert.NoError(t, err)
+		assert.Equal(t, anId, schema.ID())
+		assert.Equal(t, aSchema, schema.Schema())
+		assert.Equal(t, aSchemaType, *schema.SchemaType())
+		assert.Equal(t, aVersion, schema.Version())
+		assert.Equal(t, references, schema.References())
+		assert.Equal(t, mockCodec, schema.Codec())
+		assert.Equal(t, jsonSchema, schema.JsonSchema())
 	}
 }
 

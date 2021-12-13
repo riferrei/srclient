@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -649,6 +650,30 @@ func (client *SchemaRegistryClient) getCodecCreationEnabled() bool {
 	client.codecCreationEnabledLock.RLock()
 	defer client.codecCreationEnabledLock.RUnlock()
 	return client.codecCreationEnabled
+}
+
+// NewSchema instantiates a new Schema struct.
+func NewSchema(
+	id int,
+	schema string,
+	schemaType SchemaType,
+	version int,
+	references []Reference,
+	codec *goavro.Codec,
+	jsonSchema *jsonschema.Schema,
+) (*Schema, error) {
+	if schema == "" {
+		return nil, errors.New("schema cannot be nil")
+	}
+	return &Schema{
+		id:         id,
+		schema:     schema,
+		schemaType: &schemaType,
+		version:    version,
+		references: references,
+		codec:      codec,
+		jsonSchema: jsonSchema,
+	}, nil
 }
 
 // ID ensures access to ID
