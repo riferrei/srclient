@@ -2,7 +2,7 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/riferrei/srclient.svg)](https://pkg.go.dev/github.com/riferrei/srclient)
 
-![Gopher logo](./images/Gopher_Dropping_Mic.png =150x150)
+<img src="https://github.com/riferrei/srclient/raw/master/images/Gopher_Dropping_Mic.png" width="150" height="150">
 
 **srclient** is a Golang client for [Schema Registry](https://www.confluent.io/confluent-schema-registry/), a software that provides a RESTful interface for developers to define standard schemas for their events, share them across the organization and safely evolve them in a way that is backward compatible and future proof.
 Using this client allows developers to build Golang programs that write and read schema compatible records to/from [Apache Kafka](https://kafka.apache.org/) using [Avro](https://avro.apache.org/), [Protobuf](https://developers.google.com/protocol-buffers), and [JSON Schemas](https://json-schema.org) while Schema Registry is used to manage the schemas used.
