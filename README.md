@@ -1,54 +1,48 @@
-= Schema Registry Client for Go
+# Schema Registry Client for Go
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/riferrei/srclient.svg)](https://pkg.go.dev/github.com/riferrei/srclient)
 
-:toc:
+![Gopher logo](./images/Gopher_Dropping_Mic.png =150x150)
 
-:imagesdir: images/
-image::Gopher_Dropping_Mic.png[Gopher, 150, 150, float="left"]
-
-*srclient* is a Golang client for https://www.confluent.io/confluent-schema-registry/[Schema Registry], a software that provides a RESTful interface for developers to define standard schemas for their events, share them across the organization and safely evolve them in a way that is backward compatible and future proof.
-Using this client allows developers to build Golang programs that write and read schema compatible records to/from https://kafka.apache.org/[Apache Kafka] using https://avro.apache.org/[Avro], https://developers.google.com/protocol-buffers[Protobuf], and https://json-schema.org[JSON Schemas] while Schema Registry is used to manage the schemas used.
+**srclient** is a Golang client for [Schema Registry](https://www.confluent.io/confluent-schema-registry/), a software that provides a RESTful interface for developers to define standard schemas for their events, share them across the organization and safely evolve them in a way that is backward compatible and future proof.
+Using this client allows developers to build Golang programs that write and read schema compatible records to/from [Apache Kafka](https://kafka.apache.org/) using [Avro](https://avro.apache.org/), [Protobuf](https://developers.google.com/protocol-buffers), and [JSON Schemas](https://json-schema.org) while Schema Registry is used to manage the schemas used.
 Using this architecture, producers programs interact with Schema Registry to retrieve schemas and use it to serialize records, and then consumer programs can retrieve the same schema from Schema Registry to deserialize the records.
-You can read more about the benefits of using Schema Registry https://www.confluent.io/blog/schemas-contracts-compatibility[here].
+You can read more about the benefits of using Schema Registry [here](https://www.confluent.io/blog/schemas-contracts-compatibility).
 
-== Features
+## Features
 
-* *Simple to Use* - This client provides a very high-level abstraction over the operations that developers writing programs for Apache Kafka typically need.
+* **Simple to Use** - This client provides a very high-level abstraction over the operations that developers writing programs for Apache Kafka typically need.
 Thus, it will feel natural for them using the functions that this client provides.
 Moreover, developers don't need to handle low-level HTTP details to communicate with Schema Registry.
-* *Performance* - This client provides caching capabilities.
+* **Performance** - This client provides caching capabilities.
 This means that any data retrieved from Schema Registry can be cached locally to improve the performance of subsequent requests.
 This allows programs that are not co-located with Schema Registry to reduce the latency necessary on each request.
 This functionality can be disabled programmatically.
 
-*License*: http://www.apache.org/licenses/LICENSE-2.0[Apache License v2.0]
+**License**: [Apache License v2.0](http://www.apache.org/licenses/LICENSE-2.0)
 
-== Installation
+## Installation
 
 Module install:
 
 This client is a Go module, therefore you can have it simply by adding the following import to your code:
 
-[source,golang]
-----
+```go
 import "github.com/riferrei/srclient"
-----
+```
 
 Then run a build to have this client automatically added to your go.mod file as a dependency.
 
 Manual install:
 
-[source,bash]
-----
+```bash
 go get -u github.com/riferrei/srclient
-----
+```
 
-== Examples
+## Examples
 
-.Producer
-[source,golang]
-----
+### Producer
+```go
 import (
 	"encoding/binary"
 	"encoding/json"
@@ -124,11 +118,11 @@ func main() {
 	p.Flush(15 * 1000)
 
 }
-----
+```
 
-.Consumer
-[source,golang]
-----
+### Consumer
+
+```go
 import (
 	"encoding/binary"
 	"fmt"
@@ -176,11 +170,8 @@ func main() {
 	c.Close()
 	
 }
-----
+```
 
-Both examples have been created using https://github.com/confluentinc/confluent-kafka-go[Confluent's Golang for Apache Kafka^TM^].
-
-== Acknowledgements
-
-* Apache, Apache Kafka, Kafka, and associated open source project names are trademarks of the https://www.apache.org/[Apache Software Foundation].
-* The https://blog.golang.org/gopher[Go Gopher], is an artistic creation of http://reneefrench.blogspot.com/[Renee French].
+## Acknowledgements
+* Apache, Apache Kafka, Kafka, and associated open source project names are trademarks of the [Apache Software Foundation](https://www.apache.org/).
+* The [Go Gopher](https://blog.golang.org/gopher), is an artistic creation of [Renee French](http://reneefrench.blogspot.com/).
