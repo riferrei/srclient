@@ -1,6 +1,6 @@
 # Schema Registry Client for Go
 
-[![CircleCI](https://circleci.com/gh/riferrei/srclient.svg?style=shield)](https://circleci.com/gh/riferrei/srclient) [![Go Report Card](https://goreportcard.com/badge/github.com/riferrei/srclient)](https://goreportcard.com/report/github.com/segmentio/kafka-go) [![Go Reference](https://pkg.go.dev/badge/github.com/riferrei/srclient.svg)](https://pkg.go.dev/github.com/riferrei/srclient)
+[![CircleCI](https://circleci.com/gh/riferrei/srclient.svg?style=shield)](https://circleci.com/gh/riferrei/srclient) [![Go Report Card](https://goreportcard.com/badge/github.com/riferrei/srclient)](https://goreportcard.com/report/github.com/riferrei/srclient) [![Go Reference](https://pkg.go.dev/badge/github.com/riferrei/srclient.svg)](https://pkg.go.dev/github.com/riferrei/srclient)
 
 <img src="https://github.com/riferrei/srclient/raw/master/images/Gopher_Dropping_Mic.png" width="150" height="150">
 
