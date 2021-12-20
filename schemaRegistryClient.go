@@ -706,6 +706,7 @@ func cacheKey(subject string, version string) string {
 	return fmt.Sprintf("%s-%s", subject, version)
 }
 
+// Error implements error, encodes HTTP errors from Schema Registry.
 type Error struct {
 	Code    int    `json:"error_code"`
 	Message string `json:"message"`
