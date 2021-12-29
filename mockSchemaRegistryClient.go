@@ -106,7 +106,9 @@ func (mck MockSchemaRegistryClient) GetLatestSchema(subject string) (*Schema, er
 	if getSchemaVersionErr != nil {
 		return nil, getSchemaVersionErr
 	}
-
+	if len(versions) == 0 {
+		return nil, errors.New("Subject not found")
+	}
 	latestVersion := versions[len(versions)-1]
 	thisSchema, err := mck.GetSchemaByVersion(subject, latestVersion)
 	if err != nil {
