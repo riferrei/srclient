@@ -117,6 +117,15 @@ func TestMockSchemaRegistryClient_GetLatestSchema(t *testing.T) {
 	}
 }
 
+func TestMockSchemaRegistryClient_GetLatestSchema_WhenNoSchemaRegistered(t *testing.T) {
+	localClient := CreateMockSchemaRegistryClient("")
+	var err error
+	assert.NotPanics(t, func() {
+		_, err = localClient.GetLatestSchema("some-innexistent-schema-subject")
+	})
+	assert.EqualError(t, err, "Subject not found")
+}
+
 func TestMockSchemaRegistryClient_GetSchemaVersions(t *testing.T) {
 	versions, _ := srClient.GetSchemaVersions("test1-key")
 	assert.Equal(t, 2, len(versions))
