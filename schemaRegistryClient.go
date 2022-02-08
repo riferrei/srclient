@@ -364,10 +364,6 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 		return nil, fmt.Errorf("invalid schema type. valid values are Avro, Json, or Protobuf")
 	}
 
-	// if references == nil {
-	// 	references = make([]Reference, 0)
-	// }
-
 	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType.String(), References: references}
 	schemaBytes, err := json.Marshal(schemaReq)
 	if err != nil {
@@ -425,10 +421,6 @@ func (client *SchemaRegistryClient) LookupSchema(subject string, schema string, 
 		break
 	default:
 		return nil, fmt.Errorf("invalid schema type. valid values are Avro, Json, or Protobuf")
-	}
-
-	if references == nil {
-		references = make([]Reference, 0)
 	}
 
 	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType.String(), References: references}
