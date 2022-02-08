@@ -61,6 +61,7 @@ type SchemaRegistryClient struct {
 	subjectSchemaCache       map[string]*Schema
 	subjectSchemaCacheLock   sync.RWMutex
 	sem                      *semaphore.Weighted
+	omitNilReferences        bool
 }
 
 var _ ISchemaRegistryClient = new(SchemaRegistryClient)
@@ -122,6 +123,15 @@ type credentials struct {
 type schemaRequest struct {
 	Schema     string      `json:"schema"`
 	SchemaType string      `json:"schemaType"`
+	References []Reference `json:"references"`
+}
+
+// The current version of Karapace does not support references
+// This way we skip it in the request but keep it compatible forward
+// Should be removed once karapace supports references
+type schemaRequestKarapace struct {
+	Schema     string      `json:"schema"`
+	SchemaType string      `json:"schemaType"`
 	References []Reference `json:"references,omitempty"`
 }
 
@@ -131,7 +141,7 @@ type schemaResponse struct {
 	Schema     string      `json:"schema"`
 	SchemaType *SchemaType `json:"schemaType"`
 	ID         int         `json:"id"`
-	References []Reference `json:"references,omitempty"`
+	References []Reference `json:"references"`
 }
 
 type isCompatibleResponse struct {
@@ -177,7 +187,14 @@ func CreateSchemaRegistryClientWithOptions(schemaRegistryURL string, client *htt
 		idSchemaCache:        make(map[int]*Schema),
 		subjectSchemaCache:   make(map[string]*Schema),
 		sem:                  semaphore.NewWeighted(int64(semaphoreWeight)),
+		omitNilReferences:    false,
 	}
+}
+
+// Enable support for turning off sending empty refs, used with Karapace registries
+// https://github.com/aiven/karapace/issues/195
+func (client *SchemaRegistryClient) OmitNilReferences(flag bool) {
+	client.omitNilReferences = flag
 }
 
 // ResetCache resets the schema caches to be able to get updated schemas.
@@ -364,7 +381,17 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 		return nil, fmt.Errorf("invalid schema type. valid values are Avro, Json, or Protobuf")
 	}
 
-	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType.String(), References: references}
+	if references == nil {
+		references = make([]Reference, 0)
+	}
+
+	var schemaReq interface{}
+	if client.omitNilReferences {
+		schemaReq = schemaRequestKarapace{Schema: schema, SchemaType: schemaType.String(), References: references}
+	} else {
+		schemaReq = schemaRequest{Schema: schema, SchemaType: schemaType.String(), References: references}
+	}
+
 	schemaBytes, err := json.Marshal(schemaReq)
 	if err != nil {
 		return nil, err
@@ -423,7 +450,17 @@ func (client *SchemaRegistryClient) LookupSchema(subject string, schema string, 
 		return nil, fmt.Errorf("invalid schema type. valid values are Avro, Json, or Protobuf")
 	}
 
-	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType.String(), References: references}
+	if references == nil {
+		references = make([]Reference, 0)
+	}
+
+	var schemaReq interface{}
+	if client.omitNilReferences {
+		schemaReq = schemaRequestKarapace{Schema: schema, SchemaType: schemaType.String(), References: references}
+	} else {
+		schemaReq = schemaRequest{Schema: schema, SchemaType: schemaType.String(), References: references}
+	}
+
 	schemaBytes, err := json.Marshal(schemaReq)
 	if err != nil {
 		return nil, err
@@ -478,7 +515,14 @@ func (client *SchemaRegistryClient) LookupSchema(subject string, schema string, 
 // IsSchemaCompatible checks if the given schema is compatible with the given subject and version
 // valid versions are versionID and "latest"
 func (client *SchemaRegistryClient) IsSchemaCompatible(subject, schema, version string, schemaType SchemaType) (bool, error) {
-	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType.String(), References: make([]Reference, 0)}
+
+	var schemaReq interface{}
+	if client.omitNilReferences {
+		schemaReq = schemaRequestKarapace{Schema: schema, SchemaType: schemaType.String(), References: nil}
+	} else {
+		schemaReq = schemaRequest{Schema: schema, SchemaType: schemaType.String(), References: make([]Reference, 0)}
+	}
+
 	schemaReqBytes, err := json.Marshal(schemaReq)
 	if err != nil {
 		return false, err
