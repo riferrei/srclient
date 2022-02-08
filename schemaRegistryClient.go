@@ -122,7 +122,7 @@ type credentials struct {
 type schemaRequest struct {
 	Schema     string      `json:"schema"`
 	SchemaType string      `json:"schemaType"`
-	References []Reference `json:"references"`
+	References []Reference `json:"references,omitempty"`
 }
 
 type schemaResponse struct {
@@ -131,7 +131,7 @@ type schemaResponse struct {
 	Schema     string      `json:"schema"`
 	SchemaType *SchemaType `json:"schemaType"`
 	ID         int         `json:"id"`
-	References []Reference `json:"references"`
+	References []Reference `json:"references,omitempty"`
 }
 
 type isCompatibleResponse struct {
@@ -364,9 +364,9 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 		return nil, fmt.Errorf("invalid schema type. valid values are Avro, Json, or Protobuf")
 	}
 
-	if references == nil {
-		references = make([]Reference, 0)
-	}
+	// if references == nil {
+	// 	references = make([]Reference, 0)
+	// }
 
 	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType.String(), References: references}
 	schemaBytes, err := json.Marshal(schemaReq)
