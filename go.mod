@@ -1,4 +1,4 @@
-module github.com/arnaldur/srclient
+module github.com/riferrei/srclient
 
 go 1.12
 
