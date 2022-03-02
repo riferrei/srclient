@@ -743,7 +743,7 @@ func (e Error) Error() string {
 }
 
 func createError(resp *http.Response) error {
-	err := Error{str: bytes.NewBuffer(make([]byte, 0, resp.ContentLength))}
+	err := Error{str: bytes.NewBuffer(make([]byte, 0))}
 	decoder := json.NewDecoder(io.TeeReader(resp.Body, err.str))
 	marshalErr := decoder.Decode(&err)
 	if marshalErr != nil {
