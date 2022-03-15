@@ -147,3 +147,11 @@ func TestMockSchemaRegistryClient_GetSubjects(t *testing.T) {
 	sort.Strings(allSubjects)
 	assert.Equal(t, allSubjects, []string{"test1-key", "test1-value", "test1_arb"})
 }
+
+func TestMockSchemaRegistryClient_DeleteSubjectByVersion(t *testing.T) {
+	originalCount, _ := srClient.GetSchemaVersions("test1-value")
+	err := srClient.DeleteSubjectByVersion("test1-value", 1, true)
+	assert.NoError(t, err)
+	newCount, _ := srClient.GetSchemaVersions("test1-value")
+	assert.Equal(t, len(originalCount)-1, len(newCount))
+}

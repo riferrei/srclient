@@ -174,6 +174,32 @@ func (mck MockSchemaRegistryClient) DeleteSubject(subject string, _ bool) error 
 	return nil
 }
 
+// DeleteSubjectByVersion removes given subject's version from cache
+func (mck MockSchemaRegistryClient) DeleteSubjectByVersion(subject string, version int, _ bool) error {
+	_, ok := mck.schemaCache[subject]
+	if !ok {
+		posErr := url.Error{
+			Op:  "DELETE",
+			URL: mck.schemaRegistryURL + fmt.Sprintf("/subjects/%s/versions/%d", subject, version),
+			Err: errors.New("Subject Not found"),
+		}
+		return &posErr
+	}
+	for schema, id := range mck.schemaCache[subject] {
+		if id == version {
+			delete(mck.schemaCache[subject], schema)
+			return nil
+		}
+	}
+
+	posErr := url.Error{
+		Op:  "GET",
+		URL: mck.schemaRegistryURL + fmt.Sprintf("/subjects/%s/versions/%d", subject, version),
+		Err: errors.New("Version Not found"),
+	}
+	return &posErr
+}
+
 func (mck MockSchemaRegistryClient) ChangeSubjectCompatibilityLevel(subject string, compatibility CompatibilityLevel) (*CompatibilityLevel, error) {
 	return nil, errors.New("mock schema registry client can't change subject compatibility level")
 }
