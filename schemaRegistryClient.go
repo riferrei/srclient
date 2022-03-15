@@ -35,6 +35,7 @@ type ISchemaRegistryClient interface {
 	LookupSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
 	ChangeSubjectCompatibilityLevel(subject string, compatibility CompatibilityLevel) (*CompatibilityLevel, error)
 	DeleteSubject(subject string, permanent bool) error
+	DeleteSubjectByVersion(subject string, version int, permanent bool) error
 	SetCredentials(username string, password string)
 	SetTimeout(timeout time.Duration)
 	CachingEnabled(value bool)
@@ -511,6 +512,19 @@ func (client *SchemaRegistryClient) IsSchemaCompatible(subject, schema, version 
 // DeleteSubject deletes
 func (client *SchemaRegistryClient) DeleteSubject(subject string, permanent bool) error {
 	uri := "/subjects/" + subject
+	_, err := client.httpRequest("DELETE", uri, nil)
+	if err != nil || !permanent {
+		return err
+	}
+
+	uri += "?permanent=true"
+	_, err = client.httpRequest("DELETE", uri, nil)
+	return err
+}
+
+// DeleteSubjectByVersion deletes the version of the scheme
+func (client *SchemaRegistryClient) DeleteSubjectByVersion(subject string, version int, permanent bool) error {
+	uri := fmt.Sprintf(subjectByVersion, subject, strconv.Itoa(version))
 	_, err := client.httpRequest("DELETE", uri, nil)
 	if err != nil || !permanent {
 		return err
