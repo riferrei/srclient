@@ -391,7 +391,7 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 	// this logic strongly relies on the idempotent guarantees
 	// from Schema Registry, as well as in the best practice
 	// that schemas don't change very often.
-	newSchema, err := client.GetLatestSchema(subject)
+	newSchema, err := client.GetSchema(schemaResp.ID)
 	if err != nil {
 		return nil, err
 	}
