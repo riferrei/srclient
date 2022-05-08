@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"sync"
@@ -245,7 +246,7 @@ func (client *SchemaRegistryClient) GetLatestSchema(subject string) (*Schema, er
 
 // GetSchemaVersions returns a list of versions from a given subject.
 func (client *SchemaRegistryClient) GetSchemaVersions(subject string) ([]int, error) {
-	resp, err := client.httpRequest("GET", fmt.Sprintf(subjectVersions, subject), nil)
+	resp, err := client.httpRequest("GET", fmt.Sprintf(subjectVersions, url.QueryEscape(subject)), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +269,7 @@ func (client *SchemaRegistryClient) ChangeSubjectCompatibilityLevel(subject stri
 	}
 	payload := bytes.NewBuffer(configChangeReqBytes)
 
-	resp, err := client.httpRequest("PUT", fmt.Sprintf(configBySubject, subject), payload)
+	resp, err := client.httpRequest("PUT", fmt.Sprintf(configBySubject, url.QueryEscape(subject)), payload)
 	if err != nil {
 		return nil, err
 	}
@@ -301,7 +302,7 @@ func (client *SchemaRegistryClient) GetGlobalCompatibilityLevel() (*Compatibilit
 // GetCompatibilityLevel returns the compatibility level of the subject.
 // If defaultToGlobal is set to true and no compatibility level is set on the subject, the global compatibility level is returned.
 func (client *SchemaRegistryClient) GetCompatibilityLevel(subject string, defaultToGlobal bool) (*CompatibilityLevel, error) {
-	resp, err := client.httpRequest("GET", fmt.Sprintf(configBySubject+"?defaultToGlobal=%t", subject, defaultToGlobal), nil)
+	resp, err := client.httpRequest("GET", fmt.Sprintf(configBySubject+"?defaultToGlobal=%t", url.QueryEscape(subject), defaultToGlobal), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -374,7 +375,7 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 		return nil, err
 	}
 	payload := bytes.NewBuffer(schemaBytes)
-	resp, err := client.httpRequest("POST", fmt.Sprintf(subjectVersions, subject), payload)
+	resp, err := client.httpRequest("POST", fmt.Sprintf(subjectVersions, url.QueryEscape(subject)), payload)
 	if err != nil {
 		return nil, err
 	}
@@ -431,7 +432,7 @@ func (client *SchemaRegistryClient) LookupSchema(subject string, schema string, 
 		return nil, err
 	}
 	payload := bytes.NewBuffer(schemaBytes)
-	resp, err := client.httpRequest("POST", fmt.Sprintf(subjectBySubject, subject), payload)
+	resp, err := client.httpRequest("POST", fmt.Sprintf(subjectBySubject, url.QueryEscape(subject)), payload)
 	if err != nil {
 		return nil, err
 	}
@@ -561,7 +562,7 @@ func (client *SchemaRegistryClient) getVersion(subject string, version string) (
 		}
 	}
 
-	resp, err := client.httpRequest("GET", fmt.Sprintf(subjectByVersion, subject, version), nil)
+	resp, err := client.httpRequest("GET", fmt.Sprintf(subjectByVersion, url.QueryEscape(subject), version), nil)
 	if err != nil {
 		return nil, err
 	}
