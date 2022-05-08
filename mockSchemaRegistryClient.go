@@ -74,13 +74,13 @@ func (mck MockSchemaRegistryClient) CreateSchema(subject string, schema string, 
 		}
 
 		mck.ids.ids++
-		result := mck.generateVersion(subject, schema)
+		result := mck.generateVersion(subject, schema, schemaType)
 		return result, nil
 	} else {
 
 		//Subject does not exist, We need full registration
 		mck.ids.ids++
-		result := mck.generateVersion(subject, schema)
+		result := mck.generateVersion(subject, schema, schemaType)
 		return result, nil
 	}
 }
@@ -225,7 +225,7 @@ handled beforehand by the environment.
 allVersions returns an ordered int[] with all versions for a given subject. It does NOT
 qualify for key/value subjects, it expects to have a `concrete subject` passed on to do the checks.
 */
-func (mck MockSchemaRegistryClient) generateVersion(subject string, schema string) *Schema {
+func (mck MockSchemaRegistryClient) generateVersion(subject string, schema string, schemaType SchemaType) *Schema {
 	versions := mck.allVersions(subject)
 	schemaVersionMap := map[*Schema]int{}
 	var currentVersion int
@@ -236,11 +236,15 @@ func (mck MockSchemaRegistryClient) generateVersion(subject string, schema strin
 		currentVersion = versions[len(versions)-1] + 1
 	}
 
+	// creates a copy
+	typeToRegister := schemaType
+
 	schemaToRegister := Schema{
 		id:      mck.ids.ids,
 		schema:  schema,
 		version: currentVersion,
 		codec:   nil,
+		schemaType: &typeToRegister,
 	}
 
 	schemaVersionMap[&schemaToRegister] = currentVersion
