@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 /*
@@ -13,36 +14,24 @@ We are going to test the client meant to be used for testing
 */
 
 var srClient MockSchemaRegistryClient
-var schema = "{  " +
-	"\"type\": \"record\",  " +
-	"\"namespace\": \"com.mycorp.mynamespace\",  " +
-	"\"name\": \"value_cdc_fake_2\", " +
-	"\"doc\": \"Sample schema to help you get started.\", " +
-	"\"fields\": [    " +
-	"{   " +
-	"\"name\": \"aField\"," +
-	"\"type\": \"int\", " +
-	"\"doc\": \"The int type is a 32-bit signed integer.\"   " +
-	"}" +
-	"]" +
-	"}"
+var schema = `{ 
+	"type": "record",
+	"namespace": "com.mycorp.mynamespace",
+	"name": "value_cdc_fake_2",
+	"doc": "Sample schema to help you get started.",
+	"fields": [ { "name": "aField", "type": "int", "doc": "The int type is a 32-bit signed integer."}]
+}`
 
-var schema2 = "{  " +
-	"\"type\": \"record\",  " +
-	"\"namespace\": \"com.mycorp.mynamespace\",  " +
-	"\"name\": \"value_cdc_fake_2\", " +
-	"\"doc\": \"Sample schema to help you get started.\", " +
-	"\"fields\": [    " +
-	"{   " +
-	"\"name\": \"bField\"," +
-	"\"type\": \"int\", " +
-	"\"doc\": \"The int type is a 32-bit signed integer.\"   " +
-	"}" +
-	"]" +
-	"}"
+var schema2 = `{ 
+	"type": "record",
+	"namespace": "com.mycorp.mynamespace",
+	"name": "value_cdc_fake_2",
+	"doc": "Sample schema to help you get started.",
+	"fields": [ { "name": "bField", "type": "int", "doc": "The int type is a 32-bit signed integer."}]
+}`
 
-var schema3 = "\"string\""
-var schema4 = "\"int\""
+var schema3 = `"string"`
+var schema4 = `"int"`
 
 /*
 We will use init to register some schemas to run our test with.
@@ -71,22 +60,22 @@ func TestMockSchemaRegistryClient_CreateSchema(t *testing.T) {
 	 By virtue of this test, we also test MockSchemaRegistryClient.GetSchema
 	*/
 	schemaReg1, _ := srClient.GetSchema(1)
-	assert.Equal(t, schema, schemaReg1.schema)
+	require.JSONEq(t, schema, schemaReg1.schema)
 	assert.Equal(t, 1, schemaReg1.version)
 	schemaReg2, _ := srClient.GetSchema(2)
-	assert.Equal(t, schema, schemaReg2.schema)
+	require.JSONEq(t, schema, schemaReg2.schema)
 	assert.Equal(t, 1, schemaReg2.version)
 	schemaReg3, _ := srClient.GetSchema(3)
-	assert.Equal(t, schema2, schemaReg3.schema)
+	require.JSONEq(t, schema2, schemaReg3.schema)
 	assert.Equal(t, 2, schemaReg3.version)
 	schemaReg4, _ := srClient.GetSchema(4)
-	assert.Equal(t, schema2, schemaReg4.schema)
+	require.JSONEq(t, schema2, schemaReg4.schema)
 	assert.Equal(t, 2, schemaReg4.version)
 	schemaReg5, _ := srClient.GetSchema(5)
-	assert.Equal(t, schema3, schemaReg5.schema)
+	require.JSONEq(t, schema3, schemaReg5.schema)
 	assert.Equal(t, 1, schemaReg5.version)
 	schemaReg6, _ := srClient.GetSchema(6)
-	assert.Equal(t, schema4, schemaReg6.schema)
+	require.JSONEq(t, schema4, schemaReg6.schema)
 	assert.Equal(t, 2, schemaReg6.version)
 
 	// Test registering already registered schema
@@ -105,7 +94,7 @@ func TestMockSchemaRegistryClient_GetLatestSchema(t *testing.T) {
 		fmt.Println(err.Error())
 		t.Fail()
 	} else {
-		assert.Equal(t, schema2, latest.schema)
+		require.JSONEq(t, schema2, latest.schema)
 	}
 
 	latest, err = srClient.GetLatestSchema("test1_arb")
@@ -113,7 +102,7 @@ func TestMockSchemaRegistryClient_GetLatestSchema(t *testing.T) {
 		fmt.Println(err.Error())
 		t.Fail()
 	} else {
-		assert.Equal(t, schema4, latest.schema)
+		require.JSONEq(t, schema4, latest.schema)
 	}
 }
 
@@ -136,10 +125,10 @@ func TestMockSchemaRegistryClient_GetSchemaVersions(t *testing.T) {
 
 func TestMockSchemaRegistryClient_GetSchemaByVersion(t *testing.T) {
 	oldVersion, _ := srClient.GetSchemaByVersion("test1-value", 1)
-	assert.Equal(t, schema, oldVersion.schema)
+	require.JSONEq(t, schema, oldVersion.schema)
 
 	oldVersion, _ = srClient.GetSchemaByVersion("test1_arb", 1)
-	assert.Equal(t, schema3, oldVersion.schema)
+	require.JSONEq(t, schema3, oldVersion.schema)
 }
 
 func TestMockSchemaRegistryClient_GetSubjects(t *testing.T) {
