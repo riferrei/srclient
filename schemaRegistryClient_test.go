@@ -46,7 +46,7 @@ func TestSchemaRegistryClient_CreateSchemaWithoutReferences(t *testing.T) {
 				assert.Equal(t, bodyToString(req.Body), string(expected))
 				// Send response to be tested
 				rw.Write(response)
-			case "/subjects/test1-value/versions/latest":
+			case fmt.Sprintf("/schemas/ids/%d", responsePayload.Version):
 				// Send response to be tested
 				rw.Write(response)
 			default:
@@ -89,7 +89,7 @@ func TestSchemaRegistryClient_CreateSchemaWithoutReferences(t *testing.T) {
 				assert.Equal(t, bodyToString(req.Body), string(expected))
 				// Send response to be tested
 				rw.Write(response)
-			case "/subjects/test1/versions/latest":
+			case fmt.Sprintf("/schemas/ids/%d", responsePayload.Version):
 				// Send response to be tested
 				rw.Write(response)
 			default:

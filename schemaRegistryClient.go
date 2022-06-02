@@ -226,6 +226,7 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 	var schema = &Schema{
 		id:         schemaID,
 		schema:     schemaResp.Schema,
+		version:    schemaResp.Version,
 		schemaType: schemaResp.SchemaType,
 		codec:      codec,
 	}
