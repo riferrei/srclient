@@ -41,6 +41,8 @@ go get -u github.com/riferrei/srclient
 
 ## Examples
 
+**For Protobuf examples, see [EXAMPLES_PROTOBUF.md](EXAMPLES_PROTOBUF.md)**
+
 ### Producer
 ```go
 import (
