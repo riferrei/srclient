@@ -14,6 +14,7 @@ var _ ISchemaRegistryClient = MockSchemaRegistryClient{}
 type MockSchemaRegistryClient struct {
 	schemaRegistryURL    string
 	credentials          *credentials
+	bearerToken          string
 	schemaCache          map[string]map[*Schema]int
 	idCache              map[int]*Schema
 	ids                  *Ids
@@ -219,6 +220,10 @@ func (mck MockSchemaRegistryClient) SetCredentials(username string, password str
 	// Nothing because mockSchemaRegistryClient is actually very vulnerable
 }
 
+func (mck MockSchemaRegistryClient) SetBearerToken(token string) {
+	// Nothing because mockSchemaRegistryClient is actually very vulnerable
+}
+
 func (mck MockSchemaRegistryClient) SetTimeout(timeout time.Duration) {
 	// Nothing because there is no timeout for cache
 }
@@ -266,10 +271,10 @@ func (mck MockSchemaRegistryClient) generateVersion(subject string, schema strin
 	typeToRegister := schemaType
 
 	schemaToRegister := Schema{
-		id:      mck.ids.ids,
-		schema:  schema,
-		version: currentVersion,
-		codec:   nil,
+		id:         mck.ids.ids,
+		schema:     schema,
+		version:    currentVersion,
+		codec:      nil,
 		schemaType: &typeToRegister,
 	}
 

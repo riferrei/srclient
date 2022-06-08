@@ -38,6 +38,7 @@ type ISchemaRegistryClient interface {
 	DeleteSubject(subject string, permanent bool) error
 	DeleteSubjectByVersion(subject string, version int, permanent bool) error
 	SetCredentials(username string, password string)
+	SetBearerToken(token string)
 	SetTimeout(timeout time.Duration)
 	CachingEnabled(value bool)
 	ResetCache()
@@ -53,6 +54,7 @@ type ISchemaRegistryClient interface {
 type SchemaRegistryClient struct {
 	schemaRegistryURL        string
 	credentials              *credentials
+	bearerToken              string
 	httpClient               *http.Client
 	cachingEnabled           bool
 	cachingEnabledLock       sync.RWMutex
@@ -541,6 +543,16 @@ func (client *SchemaRegistryClient) SetCredentials(username string, password str
 	}
 }
 
+// SetBearerToken allows users to add a bearer token to
+// be used with calls to Schema Registry, for scenarios
+// when Schema Registry is behind a bearer provided
+// authentication layer.
+func (client *SchemaRegistryClient) SetBearerToken(token string) {
+	if len(token) > 0 {
+		client.bearerToken = token
+	}
+}
+
 // SetTimeout allows the client to be reconfigured about
 // how much time internal HTTP requests will take until
 // they timeout. FYI, It defaults to five seconds.
@@ -630,6 +642,9 @@ func (client *SchemaRegistryClient) httpRequest(method, uri string, payload io.R
 	}
 	if client.credentials != nil {
 		req.SetBasicAuth(client.credentials.username, client.credentials.password)
+	}
+	if client.bearerToken != "" {
+		req.Header.Add("Authorization", "Bearer "+client.bearerToken)
 	}
 	req.Header.Set("Content-Type", contentType)
 
