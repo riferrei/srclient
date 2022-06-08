@@ -80,11 +80,11 @@ func TestMockSchemaRegistryClient_CreateSchema(t *testing.T) {
 
 	// Test registering already registered schema
 	_, err := srClient.CreateSchema("test1-key", schema, Avro)
-	assert.EqualError(t, err, "POST mock://testingUrl/subjects/test1-key/versions: Schema already registered with id 2")
+	assert.EqualError(t, err, "POST \"mock://testingUrl/subjects/test1-key/versions\": Schema already registered with id 2")
 
 	// Test registering already registered schema
 	_, err = srClient.CreateSchema("test1_arb", schema3, Avro)
-	assert.EqualError(t, err, "POST mock://testingUrl/subjects/test1_arb/versions: Schema already registered with id 5")
+	assert.EqualError(t, err, "POST \"mock://testingUrl/subjects/test1_arb/versions\": Schema already registered with id 5")
 }
 
 func TestMockSchemaRegistryClient_GetLatestSchema(t *testing.T) {
