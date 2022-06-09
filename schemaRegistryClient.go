@@ -548,10 +548,9 @@ func (client *SchemaRegistryClient) SetCredentials(username string, password str
 	}
 }
 
-// SetBearerToken allows users to add a bearer token to
-// be used with calls to Schema Registry, for scenarios
-// when Schema Registry is behind a bearer provided
-// authentication layer.
+// SetBearerToken allows users to add a Bearer Token
+// http header with calls to Schema Registry
+// The BearerToken will override Schema Registry credentials 
 func (client *SchemaRegistryClient) SetBearerToken(token string) {
 	if len(token) > 0 {
 		credentials := credentials{username: "", password: "", bearerToken: token}
