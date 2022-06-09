@@ -14,7 +14,6 @@ var _ ISchemaRegistryClient = MockSchemaRegistryClient{}
 type MockSchemaRegistryClient struct {
 	schemaRegistryURL    string
 	credentials          *credentials
-	bearerToken          string
 	schemaCache          map[string]map[*Schema]int
 	idCache              map[int]*Schema
 	ids                  *Ids

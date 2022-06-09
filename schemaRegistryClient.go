@@ -54,7 +54,6 @@ type ISchemaRegistryClient interface {
 type SchemaRegistryClient struct {
 	schemaRegistryURL        string
 	credentials              *credentials
-	bearerToken              string
 	httpClient               *http.Client
 	cachingEnabled           bool
 	cachingEnabledLock       sync.RWMutex
@@ -118,9 +117,15 @@ type Schema struct {
 	jsonSchema *jsonschema.Schema
 }
 
+// credentials can have either username AND password
+// OR a bearerToken, it cannot have both forms of authentication
 type credentials struct {
+	// Username and Password for Schema Basic Auth
 	username string
 	password string
+
+	// Bearer Authorization token
+	bearerToken string
 }
 
 type schemaRequest struct {
@@ -538,7 +543,7 @@ func (client *SchemaRegistryClient) DeleteSubjectByVersion(subject string, versi
 // Registry has authentication enabled.
 func (client *SchemaRegistryClient) SetCredentials(username string, password string) {
 	if len(username) > 0 && len(password) > 0 {
-		credentials := credentials{username, password}
+		credentials := credentials{username: username, password: password, bearerToken: ""}
 		client.credentials = &credentials
 	}
 }
@@ -549,7 +554,8 @@ func (client *SchemaRegistryClient) SetCredentials(username string, password str
 // authentication layer.
 func (client *SchemaRegistryClient) SetBearerToken(token string) {
 	if len(token) > 0 {
-		client.bearerToken = token
+		credentials := credentials{username: "", password: "", bearerToken: token}
+		client.credentials = &credentials
 	}
 }
 
@@ -641,10 +647,11 @@ func (client *SchemaRegistryClient) httpRequest(method, uri string, payload io.R
 		return nil, err
 	}
 	if client.credentials != nil {
-		req.SetBasicAuth(client.credentials.username, client.credentials.password)
-	}
-	if client.bearerToken != "" {
-		req.Header.Add("Authorization", "Bearer "+client.bearerToken)
+		if len(client.credentials.username) > 0 && len(client.credentials.password) > 0 {
+			req.SetBasicAuth(client.credentials.username, client.credentials.password)
+		} else if len(client.credentials.bearerToken) > 0 {
+			req.Header.Add("Authorization", "Bearer "+client.credentials.bearerToken)
+		}
 	}
 	req.Header.Set("Content-Type", contentType)
 
