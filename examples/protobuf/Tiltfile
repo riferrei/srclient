@@ -1,0 +1,82 @@
+load('ext://deployment', 'deployment_create')
+load('ext://restart_process', 'docker_build_with_restart')
+
+# Example producer & consumers
+local_resource('consumer-build', 'CGO_ENABLED=0 GOOS=linux go build -o build/consumer ./cmd/consumer', deps=['./cmd/consumer', 'go.mod'], labels=['consumer'])
+local_resource('producer-build', 'CGO_ENABLED=0 GOOS=linux go build -o build/producer ./cmd/producer', deps=['./cmd/producer', 'go.mod'], labels=['producer'])
+
+docker_build_with_restart('consumer-image', '.',
+    entrypoint=['/app/build/consumer'],
+    dockerfile_contents='''FROM alpine
+        WORKDIR /app
+        ADD build build
+        ENTRYPOINT build/consumer
+    ''',
+    only=['./build'],
+    live_update=[sync('./build', '/app/build')],
+)
+
+docker_build_with_restart('producer-image', '.',
+    entrypoint=['/app/build/producer'],
+    dockerfile_contents='''FROM alpine
+        WORKDIR /app
+        ADD build build
+        ADD proto/hello.proto hello.proto
+        ENTRYPOINT build/producer
+    ''',
+    only=['./build', './proto'],
+    live_update=[sync('./build', '/app/build')],
+)
+
+
+deployment_create('consumer', image='consumer-image', ports='8090')
+deployment_create('producer', image='producer-image', ports='8080', labels=['producer'])
+
+k8s_resource("consumer", port_forwards=['8090:8090'], labels=['consumer'])
+k8s_resource("producer", port_forwards=['8080:8080'], labels=['producer'])
+
+# Kafka infra
+deployment_create('zookeeper',
+    image='ghcr.io/arm64-compat/confluentinc/cp-zookeeper:7.1.1',
+    ports='2181',
+    env=[
+        {"name": "ZOOKEEPER_CLIENT_PORT", "value": "2181"},
+        {"name": "ZOOKEEPER_TICK_TIME", "value": "2000"},
+        {"name": "KAFKA_OPTS", "value": "-Dzookeeper.4lw.commands.whitelist=ruok"},
+    ],
+    readiness_probe={
+        'exec':{
+            'command': ['/bin/bash', '-c', 'echo "ruok" | nc -w 2 localhost 2181 | grep imok'],
+        },
+    }
+)
+
+deployment_create('kafkasvc',
+    image='ghcr.io/arm64-compat/confluentinc/cp-kafka:7.1.1',
+    ports=['9092', '29092'],
+    env=[
+        {"name": "KAFKA_BROKER_ID", "value": "1"},
+        {"name": "KAFKA_ZOOKEEPER_CONNECT", "value": "zookeeper:2181"},
+        {"name": "KAFKA_ADVERTISED_LISTENERS", "value": "PLAINTEXT://kafkasvc:29092,PLAINTEXT_HOST://kafkasvc:9092"},
+        {"name": "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP", "value": "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"},
+        {"name": "KAFKA_INTER_BROKER_LISTENER_NAME", "value": "PLAINTEXT"},
+        {"name": "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR", "value": "1"},
+    ],
+    resource_deps=['zookeeper'],
+)
+
+deployment_create('schemaregistry',
+  image='ghcr.io/arm64-compat/confluentinc/cp-schema-registry:7.1.1',
+  ports='8081',
+  env=[
+      {"name": "SCHEMA_REGISTRY_LISTENERS", "value": "http://0.0.0.0:8081"},
+      {"name": "SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL", "value": "zookeeper:2181"},
+      {"name": "SCHEMA_REGISTRY_HOST_NAME", "value": "schemaregistry"},
+      {"name": "SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", "value": "PLAINTEXT://kafkasvc:9092"},
+  ],
+  resource_deps=['kafkasvc'],
+)
+
+k8s_resource("zookeeper", port_forwards=['2181:2181'], labels=["zookeeper"])
+k8s_resource("kafkasvc", port_forwards=['9092:9092', '29092:29092'], labels=["kafka"])
+k8s_resource("schemaregistry", port_forwards=['8081:8081'], labels=["schemaregistry"])
