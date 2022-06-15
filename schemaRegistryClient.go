@@ -235,6 +235,7 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 		schema:     schemaResp.Schema,
 		version:    schemaResp.Version,
 		schemaType: schemaResp.SchemaType,
+		references: schemaResp.References,
 		codec:      codec,
 	}
 
@@ -550,7 +551,7 @@ func (client *SchemaRegistryClient) SetCredentials(username string, password str
 
 // SetBearerToken allows users to add a Bearer Token
 // http header with calls to Schema Registry
-// The BearerToken will override Schema Registry credentials 
+// The BearerToken will override Schema Registry credentials
 func (client *SchemaRegistryClient) SetBearerToken(token string) {
 	if len(token) > 0 {
 		credentials := credentials{username: "", password: "", bearerToken: token}
