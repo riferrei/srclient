@@ -27,10 +27,6 @@ type Ids struct {
 	ids int
 }
 
-// MockSchemaRegistryClient does not use codecs, so we just use this default one
-// to prevent any nil panics.
-var defaultCodec, _ = goavro.NewCodec("{}")
-
 //Constructor
 func CreateMockSchemaRegistryClient(mockURL string) MockSchemaRegistryClient {
 	mockClient := MockSchemaRegistryClient{
@@ -276,11 +272,13 @@ func (mck MockSchemaRegistryClient) generateVersion(subject string, schema strin
 	// creates a copy
 	typeToRegister := schemaType
 
+	codec, _ := goavro.NewCodec(schema)
+
 	schemaToRegister := Schema{
 		id:         mck.ids.ids,
 		schema:     schema,
 		version:    currentVersion,
-		codec:      defaultCodec,
+		codec:      codec,
 		schemaType: &typeToRegister,
 	}
 
