@@ -18,9 +18,6 @@ type MockSchemaRegistryClient struct {
 	schemaCache       map[string]map[*Schema]int
 	idCache           map[int]*Schema
 	ids               *Ids
-
-	// TODO: This value is never used
-	codecCreationEnabled bool
 }
 
 type Ids struct {
@@ -30,12 +27,11 @@ type Ids struct {
 //Constructor
 func CreateMockSchemaRegistryClient(mockURL string) MockSchemaRegistryClient {
 	mockClient := MockSchemaRegistryClient{
-		schemaRegistryURL:    mockURL,
-		credentials:          nil,
-		schemaCache:          map[string]map[*Schema]int{},
-		idCache:              map[int]*Schema{},
-		ids:                  &Ids{ids: 0},
-		codecCreationEnabled: false,
+		schemaRegistryURL: mockURL,
+		credentials:       nil,
+		schemaCache:       map[string]map[*Schema]int{},
+		idCache:           map[int]*Schema{},
+		ids:               &Ids{ids: 0},
 	}
 
 	return mockClient
@@ -129,7 +125,7 @@ func (mck MockSchemaRegistryClient) GetSchemaVersions(subject string) ([]int, er
 
 // Returns the given Schema according to the passed in subject and version number
 func (mck MockSchemaRegistryClient) GetSchemaByVersion(subject string, version int) (*Schema, error) {
-	schema := &Schema{}
+	var schema *Schema
 	schemaVersionMap, ok := mck.schemaCache[subject]
 	if !ok {
 		posErr := url.Error{
