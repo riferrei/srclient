@@ -3,6 +3,7 @@ package srclient
 import (
 	"errors"
 	"fmt"
+	"github.com/linkedin/goavro/v2"
 	"net/url"
 	"regexp"
 	"sort"
@@ -12,17 +13,23 @@ import (
 var _ ISchemaRegistryClient = MockSchemaRegistryClient{}
 
 type MockSchemaRegistryClient struct {
-	schemaRegistryURL    string
-	credentials          *credentials
-	schemaCache          map[string]map[*Schema]int
-	idCache              map[int]*Schema
-	ids                  *Ids
+	schemaRegistryURL string
+	credentials       *credentials
+	schemaCache       map[string]map[*Schema]int
+	idCache           map[int]*Schema
+	ids               *Ids
+
+	// TODO: This value is never used
 	codecCreationEnabled bool
 }
 
 type Ids struct {
 	ids int
 }
+
+// MockSchemaRegistryClient does not use codecs, so we just use this default one
+// to prevent any nil panics.
+var defaultCodec, _ = goavro.NewCodec("{}")
 
 //Constructor
 func CreateMockSchemaRegistryClient(mockURL string) MockSchemaRegistryClient {
@@ -273,7 +280,7 @@ func (mck MockSchemaRegistryClient) generateVersion(subject string, schema strin
 		id:         mck.ids.ids,
 		schema:     schema,
 		version:    currentVersion,
-		codec:      nil,
+		codec:      defaultCodec,
 		schemaType: &typeToRegister,
 	}
 
