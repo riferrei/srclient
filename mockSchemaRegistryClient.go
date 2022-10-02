@@ -54,12 +54,13 @@ var avroRegex = regexp.MustCompile(`\r?\n`)
 // CreateSchema generates a new schema with the given details, references are unused
 func (mck *MockSchemaRegistryClient) CreateSchema(subject string, schema string, schemaType SchemaType, _ ...Reference) (*Schema, error) {
 	mck.idCounter++
-	return mck.SetSchema(mck.idCounter, subject, schema, schemaType)
+	return mck.SetSchema(mck.idCounter, subject, schema, schemaType, -1)
 }
 
 // SetSchema overwrites a schema with the given id. Allows you to set a schema with a specific ID for testing purposes.
-// References are unused. Sets the ID counter to the given id if it is greater than the current counter.
-func (mck *MockSchemaRegistryClient) SetSchema(id int, subject string, schema string, schemaType SchemaType, _ ...Reference) (*Schema, error) {
+// References are unused. Sets the ID counter to the given id if it is greater than the current counter. Version
+// is used to set the version of the schema. If version is -1, the version will be set to the next available version.
+func (mck *MockSchemaRegistryClient) SetSchema(id int, subject string, schema string, schemaType SchemaType, version int) (*Schema, error) {
 	if id > mck.idCounter {
 		mck.idCounter = id
 	}
@@ -75,7 +76,7 @@ func (mck *MockSchemaRegistryClient) SetSchema(id int, subject string, schema st
 
 	resultFromSchemaCache, ok := mck.schemaCache[subject]
 	if !ok {
-		return mck.generateVersion(id, subject, schema, schemaType), nil
+		return mck.generateVersion(id, subject, schema, schemaType, version), nil
 	}
 
 	// Verify if it's not the same schema as an existing version
@@ -90,7 +91,7 @@ func (mck *MockSchemaRegistryClient) SetSchema(id int, subject string, schema st
 		}
 	}
 
-	return mck.generateVersion(id, subject, schema, schemaType), nil
+	return mck.generateVersion(id, subject, schema, schemaType, version), nil
 }
 
 // GetSchema Returns a Schema for the given ID
@@ -273,17 +274,24 @@ allVersions returns an ordered int[] with all versions for a given subject. It d
 qualify for key/value subjects, it expects to have a `concrete subject` passed on to do the checks.
 */
 
-// generateVersion the next version of the schema for the given subject
-func (mck *MockSchemaRegistryClient) generateVersion(id int, subject string, schema string, schemaType SchemaType) *Schema {
+// generateVersion the next version of the schema for the given subject, givenVersion can be set to -1 to generate one.
+func (mck *MockSchemaRegistryClient) generateVersion(id int, subject string, schema string, schemaType SchemaType, givenVersion int) *Schema {
 	versions := mck.allVersions(subject)
 	schemaVersionMap := map[int]*Schema{}
 	currentVersion := 1
 
-	if len(versions) > 0 {
-		schemaVersionMap = mck.schemaCache[subject]
-		currentVersion = versions[len(versions)-1] + 1
+	// Determine if a version was given
+	if givenVersion >= 0 {
+		currentVersion = givenVersion
+	} else {
+		// Otherwise, determine if we need to generate one from existing versions
+		if len(versions) > 0 {
+			schemaVersionMap = mck.schemaCache[subject]
+			currentVersion = versions[len(versions)-1] + 1
+		}
 	}
 
+	// Add a codec, required otherwise Codec() panics
 	codec, _ := goavro.NewCodec(schema)
 
 	schemaToRegister := &Schema{

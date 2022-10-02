@@ -103,6 +103,7 @@ func TestMockSchemaRegistryClient_SetSchema_RegistersSchemaCorrectly(t *testing.
 		schema     string
 		schemaType SchemaType
 		id         int
+		version    int
 
 		existingSchemaCounter int
 
@@ -113,6 +114,7 @@ func TestMockSchemaRegistryClient_SetSchema_RegistersSchemaCorrectly(t *testing.
 			schema:     `{"type": "record", "name": "cupcake", "fields": [{"name": "flavor", "type": "string"}]}`,
 			schemaType: Avro,
 			id:         52,
+			version:    -1,
 
 			existingSchemaCounter: 0,
 
@@ -128,6 +130,7 @@ func TestMockSchemaRegistryClient_SetSchema_RegistersSchemaCorrectly(t *testing.
 			schema:     `{"type": "record", "name": "bakery", "fields": [{"name": "number", "type": "int"}]}`,
 			schemaType: Avro,
 			id:         7,
+			version:    -1,
 
 			existingSchemaCounter: 10,
 
@@ -143,6 +146,7 @@ func TestMockSchemaRegistryClient_SetSchema_RegistersSchemaCorrectly(t *testing.
 			schema:     `{"type": "record", "name": "bakery", "fields": [{"name": "number", "type": "int"}]}`,
 			schemaType: Protobuf,
 			id:         24,
+			version:    -1,
 
 			existingSchemaCounter: 75,
 
@@ -150,6 +154,20 @@ func TestMockSchemaRegistryClient_SetSchema_RegistersSchemaCorrectly(t *testing.
 				id:         24,
 				version:    76,
 				schemaType: &protobuf,
+				schema:     `{"type": "record", "name": "bakery", "fields": [{"name": "number", "type": "int"}]}`,
+			},
+		},
+		"with given version": {
+			subject:    "bakery",
+			schema:     `{"type": "record", "name": "bakery", "fields": [{"name": "number", "type": "int"}]}`,
+			schemaType: Avro,
+			id:         7,
+			version:    634,
+
+			expectedSchema: &Schema{
+				id:         7,
+				version:    634,
+				schemaType: &avroType,
 				schema:     `{"type": "record", "name": "bakery", "fields": [{"name": "number", "type": "int"}]}`,
 			},
 		},
@@ -169,7 +187,7 @@ func TestMockSchemaRegistryClient_SetSchema_RegistersSchemaCorrectly(t *testing.
 			}
 
 			// Act
-			schema, err := registry.SetSchema(testData.id, testData.subject, testData.schema, testData.schemaType)
+			schema, err := registry.SetSchema(testData.id, testData.subject, testData.schema, testData.schemaType, testData.version)
 
 			// Assert
 			if assert.Nil(t, err) {
@@ -215,7 +233,7 @@ func TestMockSchemaRegistryClient_SetSchema_CorrectlyUpdatesIdCounter(t *testing
 			registry.idCounter = testData.currentId
 
 			// Act
-			_, _ = registry.SetSchema(testData.newId, "cupcake", `{}`, Avro)
+			_, _ = registry.SetSchema(testData.newId, "cupcake", `{}`, Avro, 0)
 
 			// Assert
 			assert.Equal(t, testData.expectedId, registry.idCounter)
