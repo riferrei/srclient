@@ -13,12 +13,13 @@ import (
 // Compile-time interface check
 var _ ISchemaRegistryClient = new(MockSchemaRegistryClient)
 
+// Currently unexported to not pollute the interface
 var (
-	ErrInvalidSchemaType       = errors.New("invalid schema type. valid values are Avro, Json, or Protobuf")
-	ErrSchemaAlreadyRegistered = errors.New("schema already registered")
-	ErrSchemaNotFound          = errors.New("schema not found")
-	ErrSubjectNotFound         = errors.New("subject not found")
-	ErrNotImplemented          = errors.New("not implemented")
+	errInvalidSchemaType       = errors.New("invalid schema type. valid values are Avro, Json, or Protobuf")
+	errSchemaAlreadyRegistered = errors.New("schema already registered")
+	errSchemaNotFound          = errors.New("schema not found")
+	errSubjectNotFound         = errors.New("subject not found")
+	errNotImplemented          = errors.New("not implemented")
 )
 
 // MockSchemaRegistryClient represents an in-memory SchemaRegistryClient for testing purposes.
@@ -69,7 +70,7 @@ func (mck *MockSchemaRegistryClient) SetSchema(id int, subject string, schema st
 	case Protobuf:
 		break
 	default:
-		return nil, ErrInvalidSchemaType
+		return nil, errInvalidSchemaType
 	}
 
 	resultFromSchemaCache, ok := mck.schemaCache[subject]
@@ -83,7 +84,7 @@ func (mck *MockSchemaRegistryClient) SetSchema(id int, subject string, schema st
 			posErr := url.Error{
 				Op:  "POST",
 				URL: fmt.Sprintf("%s/subjects/%s/versions", mck.schemaRegistryURL, subject),
-				Err: ErrSchemaAlreadyRegistered,
+				Err: errSchemaAlreadyRegistered,
 			}
 			return nil, &posErr
 		}
@@ -99,7 +100,7 @@ func (mck *MockSchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 		posErr := url.Error{
 			Op:  "GET",
 			URL: fmt.Sprintf("%s/schemas/ids/%d", mck.schemaRegistryURL, schemaID),
-			Err: ErrSchemaNotFound,
+			Err: errSchemaNotFound,
 		}
 
 		return nil, &posErr
@@ -112,7 +113,7 @@ func (mck *MockSchemaRegistryClient) GetLatestSchema(subject string) (*Schema, e
 	// Error is never returned
 	versions, _ := mck.GetSchemaVersions(subject)
 	if len(versions) == 0 {
-		return nil, ErrSchemaNotFound
+		return nil, errSchemaNotFound
 	}
 
 	latestVersion := versions[len(versions)-1]
@@ -137,7 +138,7 @@ func (mck *MockSchemaRegistryClient) GetSchemaByVersion(subject string, version 
 		posErr := url.Error{
 			Op:  "GET",
 			URL: mck.schemaRegistryURL + fmt.Sprintf("/subjects/%s/versions/%d", subject, version),
-			Err: ErrSubjectNotFound,
+			Err: errSubjectNotFound,
 		}
 		return nil, &posErr
 	}
@@ -151,7 +152,7 @@ func (mck *MockSchemaRegistryClient) GetSchemaByVersion(subject string, version 
 		posErr := url.Error{
 			Op:  "GET",
 			URL: mck.schemaRegistryURL + fmt.Sprintf("/subjects/%s/versions/%d", subject, version),
-			Err: ErrSchemaNotFound,
+			Err: errSchemaNotFound,
 		}
 		return nil, &posErr
 	}
@@ -172,7 +173,7 @@ func (mck *MockSchemaRegistryClient) GetSubjects() ([]string, error) {
 
 // GetSubjectsIncludingDeleted is not implemented and returns an error
 func (mck *MockSchemaRegistryClient) GetSubjectsIncludingDeleted() ([]string, error) {
-	return nil, ErrNotImplemented
+	return nil, errNotImplemented
 }
 
 // DeleteSubject removes given subject from the cache
@@ -188,7 +189,7 @@ func (mck *MockSchemaRegistryClient) DeleteSubjectByVersion(subject string, vers
 		posErr := url.Error{
 			Op:  "DELETE",
 			URL: fmt.Sprintf("%s/subjects/%s/versions/%d", mck.schemaRegistryURL, subject, version),
-			Err: ErrSubjectNotFound,
+			Err: errSubjectNotFound,
 		}
 		return &posErr
 	}
@@ -203,24 +204,24 @@ func (mck *MockSchemaRegistryClient) DeleteSubjectByVersion(subject string, vers
 	posErr := url.Error{
 		Op:  "GET",
 		URL: fmt.Sprintf("%s/subjects/%s/versions/%d", mck.schemaRegistryURL, subject, version),
-		Err: ErrSchemaNotFound,
+		Err: errSchemaNotFound,
 	}
 	return &posErr
 }
 
 // ChangeSubjectCompatibilityLevel is not implemented
 func (mck *MockSchemaRegistryClient) ChangeSubjectCompatibilityLevel(string, CompatibilityLevel) (*CompatibilityLevel, error) {
-	return nil, ErrNotImplemented
+	return nil, errNotImplemented
 }
 
 // GetGlobalCompatibilityLevel is not implemented
 func (mck *MockSchemaRegistryClient) GetGlobalCompatibilityLevel() (*CompatibilityLevel, error) {
-	return nil, ErrNotImplemented
+	return nil, errNotImplemented
 }
 
 // GetCompatibilityLevel is not implemented
 func (mck *MockSchemaRegistryClient) GetCompatibilityLevel(string, bool) (*CompatibilityLevel, error) {
-	return nil, ErrNotImplemented
+	return nil, errNotImplemented
 }
 
 // SetCredentials is not implemented
@@ -255,12 +256,12 @@ func (mck *MockSchemaRegistryClient) CodecCreationEnabled(bool) {
 
 // IsSchemaCompatible is not implemented
 func (mck *MockSchemaRegistryClient) IsSchemaCompatible(string, string, string, SchemaType) (bool, error) {
-	return false, ErrNotImplemented
+	return false, errNotImplemented
 }
 
 // LookupSchema is not implemented
 func (mck *MockSchemaRegistryClient) LookupSchema(string, string, SchemaType, ...Reference) (*Schema, error) {
-	return nil, ErrNotImplemented
+	return nil, errNotImplemented
 }
 
 /*

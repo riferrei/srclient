@@ -232,7 +232,7 @@ func TestMockSchemaRegistryClient_CreateSchema_ReturnsErrorOnInvalidSchemaType(t
 
 	// Assert
 	assert.Nil(t, schema)
-	assert.Equal(t, ErrInvalidSchemaType, err)
+	assert.Equal(t, errInvalidSchemaType, err)
 }
 
 func TestMockSchemaRegistryClient_CreateSchema_ReturnsErrorOnDuplicateSchema(t *testing.T) {
@@ -250,7 +250,7 @@ func TestMockSchemaRegistryClient_CreateSchema_ReturnsErrorOnDuplicateSchema(t *
 
 	// Assert
 	assert.Nil(t, schema)
-	assert.ErrorIs(t, err, ErrSchemaAlreadyRegistered)
+	assert.ErrorIs(t, err, errSchemaAlreadyRegistered)
 }
 
 func TestMockSchemaRegistryClient_GetSchema_ReturnsSchema(t *testing.T) {
@@ -279,7 +279,7 @@ func TestMockSchemaRegistryClient_GetSchema_ReturnsErrOnNotFound(t *testing.T) {
 	result, err := registry.GetSchema(234)
 
 	// Assert
-	assert.ErrorIs(t, err, ErrSchemaNotFound)
+	assert.ErrorIs(t, err, errSchemaNotFound)
 
 	assert.Nil(t, result)
 }
@@ -293,7 +293,7 @@ func TestMockSchemaRegistryClient_GetLatestSchema_ReturnsErrorOn0SchemaVersions(
 
 	// Assert
 	assert.Nil(t, result)
-	assert.ErrorIs(t, err, ErrSchemaNotFound)
+	assert.ErrorIs(t, err, errSchemaNotFound)
 }
 
 func TestMockSchemaRegistryClient_GetLatestSchema_ReturnsExpectedSchema(t *testing.T) {
@@ -362,7 +362,7 @@ func TestMockSchemaRegistryClient_GetSchemaByVersion_ReturnsErrorOnSubjectNotFou
 
 	// Assert
 	assert.Nil(t, result)
-	assert.ErrorIs(t, err, ErrSubjectNotFound)
+	assert.ErrorIs(t, err, errSubjectNotFound)
 }
 
 func TestMockSchemaRegistryClient_GetSchemaByVersion_ReturnsErrorOnSchemaNotFound(t *testing.T) {
@@ -377,7 +377,7 @@ func TestMockSchemaRegistryClient_GetSchemaByVersion_ReturnsErrorOnSchemaNotFoun
 
 	// Assert
 	assert.Nil(t, result)
-	assert.ErrorIs(t, err, ErrSchemaNotFound)
+	assert.ErrorIs(t, err, errSchemaNotFound)
 }
 
 func TestMockSchemaRegistryClient_GetSchemaByVersion_ReturnsSchema(t *testing.T) {
@@ -453,7 +453,7 @@ func TestMockSchemaRegistryClient_GetSubjectsIncludingDeleted_IsNotImplemented(t
 
 	// Assert
 	assert.Nil(t, result)
-	assert.ErrorIs(t, err, ErrNotImplemented)
+	assert.ErrorIs(t, err, errNotImplemented)
 }
 
 func TestMockSchemaRegistryClient_DeleteSubject_DeletesSubject(t *testing.T) {
@@ -497,7 +497,7 @@ func TestMockSchemaRegistryClient_DeleteSubjectByVersion_ReturnsErrorOnSubjectNo
 	err := registry.DeleteSubjectByVersion("cupcake", 5, false)
 
 	// Assert
-	assert.ErrorIs(t, err, ErrSubjectNotFound)
+	assert.ErrorIs(t, err, errSubjectNotFound)
 }
 
 func TestMockSchemaRegistryClient_DeleteSubjectByVersion_ReturnsErrorOnVersionNotFound(t *testing.T) {
@@ -513,7 +513,7 @@ func TestMockSchemaRegistryClient_DeleteSubjectByVersion_ReturnsErrorOnVersionNo
 	err := registry.DeleteSubjectByVersion("cupcake", 5, false)
 
 	// Assert
-	assert.ErrorIs(t, err, ErrSchemaNotFound)
+	assert.ErrorIs(t, err, errSchemaNotFound)
 }
 
 func TestMockSchemaRegistryClient_ChangeSubjectCompatibilityLevel_IsNotImplemented(t *testing.T) {
@@ -525,7 +525,7 @@ func TestMockSchemaRegistryClient_ChangeSubjectCompatibilityLevel_IsNotImplement
 
 	// Assert
 	assert.Nil(t, result)
-	assert.ErrorIs(t, err, ErrNotImplemented)
+	assert.ErrorIs(t, err, errNotImplemented)
 }
 
 func TestMockSchemaRegistryClient_GetGlobalCompatibilityLevel_IsNotImplemented(t *testing.T) {
@@ -537,7 +537,7 @@ func TestMockSchemaRegistryClient_GetGlobalCompatibilityLevel_IsNotImplemented(t
 
 	// Assert
 	assert.Nil(t, result)
-	assert.ErrorIs(t, err, ErrNotImplemented)
+	assert.ErrorIs(t, err, errNotImplemented)
 }
 
 func TestMockSchemaRegistryClient_GetCompatibilityLevel_IsNotImplemented(t *testing.T) {
@@ -549,7 +549,7 @@ func TestMockSchemaRegistryClient_GetCompatibilityLevel_IsNotImplemented(t *test
 
 	// Assert
 	assert.Nil(t, result)
-	assert.ErrorIs(t, err, ErrNotImplemented)
+	assert.ErrorIs(t, err, errNotImplemented)
 }
 
 func TestMockSchemaRegistryClient_IsSchemaCompatible_IsNotImplemented(t *testing.T) {
@@ -561,7 +561,7 @@ func TestMockSchemaRegistryClient_IsSchemaCompatible_IsNotImplemented(t *testing
 
 	// Assert
 	assert.False(t, result)
-	assert.ErrorIs(t, err, ErrNotImplemented)
+	assert.ErrorIs(t, err, errNotImplemented)
 }
 
 func TestMockSchemaRegistryClient_LookupSchema_IsNotImplemented(t *testing.T) {
@@ -573,5 +573,5 @@ func TestMockSchemaRegistryClient_LookupSchema_IsNotImplemented(t *testing.T) {
 
 	// Assert
 	assert.Nil(t, result)
-	assert.ErrorIs(t, err, ErrNotImplemented)
+	assert.ErrorIs(t, err, errNotImplemented)
 }
