@@ -58,7 +58,7 @@ func (mck *MockSchemaRegistryClient) CreateSchema(subject string, schema string,
 }
 
 // SetSchema overwrites a schema with the given id. Allows you to set a schema with a specific ID for testing purposes.
-// References are unused. Sets the ID counter to the given id if it is greater than the current counter. Version
+// Sets the ID counter to the given id if it is greater than the current counter. Version
 // is used to set the version of the schema. If version is -1, the version will be set to the next available version.
 func (mck *MockSchemaRegistryClient) SetSchema(id int, subject string, schema string, schemaType SchemaType, version int) (*Schema, error) {
 	if id > mck.idCounter {
