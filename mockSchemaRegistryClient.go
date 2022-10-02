@@ -10,132 +10,138 @@ import (
 	"time"
 )
 
-var _ ISchemaRegistryClient = MockSchemaRegistryClient{}
+// Compile-time interface check
+var _ ISchemaRegistryClient = new(MockSchemaRegistryClient)
 
+var (
+	ErrInvalidSchemaType       = errors.New("invalid schema type. valid values are Avro, Json, or Protobuf")
+	ErrSchemaAlreadyRegistered = errors.New("schema already registered")
+	ErrSchemaNotFound          = errors.New("schema not found")
+	ErrSubjectNotFound         = errors.New("subject not found")
+	ErrNotImplemented          = errors.New("not implemented")
+)
+
+// MockSchemaRegistryClient represents an in-memory SchemaRegistryClient for testing purposes.
 type MockSchemaRegistryClient struct {
+	// schemaRegistryURL is used to form errors
 	schemaRegistryURL string
-	credentials       *credentials
-	schemaCache       map[string]map[*Schema]int
-	idCache           map[int]*Schema
-	ids               *Ids
+
+	// schemaCache is a map of subject to a map of versions to the actual schema
+	schemaCache map[string]map[int]*Schema
+
+	// idCache is a map of schema ID to the actual schema
+	idCache map[int]*Schema
+
+	// idCounter is used to generate unique IDs for each schema
+	idCounter int
 }
 
-type Ids struct {
-	ids int
-}
-
-//Constructor
+// CreateMockSchemaRegistryClient initializes a MockSchemaRegistryClient
 func CreateMockSchemaRegistryClient(mockURL string) MockSchemaRegistryClient {
 	mockClient := MockSchemaRegistryClient{
 		schemaRegistryURL: mockURL,
-		credentials:       nil,
-		schemaCache:       map[string]map[*Schema]int{},
+		schemaCache:       map[string]map[int]*Schema{},
 		idCache:           map[int]*Schema{},
-		ids:               &Ids{ids: 0},
 	}
 
 	return mockClient
 }
 
-/*
-Mock Schema creation and registration. CreateSchema behaves in two possible ways according to the scenario:
-1. The schema being registered is for an already existing `concrete subject`. In that case,
-we increase our schemaID counter and register the schema under that subject in memory.
-2. The schema being registered is for a previously unknown `concrete subject`. In that case,
-we set this schema as the first version of the subject and store it in memory.
+// avroRegex is used to remove whitespace from the schema string
+var avroRegex = regexp.MustCompile(`\r?\n`)
 
-Note that there is no enforcement of schema compatibility, any schema goes for all subjects.
-*/
-func (mck MockSchemaRegistryClient) CreateSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error) {
+// CreateSchema generates a new schema with the given details, references are unused
+func (mck *MockSchemaRegistryClient) CreateSchema(subject string, schema string, schemaType SchemaType, _ ...Reference) (*Schema, error) {
+	mck.idCounter++
+	return mck.SetSchema(mck.idCounter, subject, schema, schemaType)
+}
+
+// SetSchema overwrites a schema with the given id. Allows you to set a schema with a specific ID for testing purposes.
+// References are unused. Sets the ID counter to the given id if it is greater than the current counter.
+func (mck *MockSchemaRegistryClient) SetSchema(id int, subject string, schema string, schemaType SchemaType, _ ...Reference) (*Schema, error) {
+	if id > mck.idCounter {
+		mck.idCounter = id
+	}
+
 	switch schemaType {
 	case Avro, Json:
-		compiledRegex := regexp.MustCompile(`\r?\n`)
-		schema = compiledRegex.ReplaceAllString(schema, " ")
+		schema = avroRegex.ReplaceAllString(schema, " ")
 	case Protobuf:
 		break
 	default:
-		return nil, fmt.Errorf("invalid schema type. valid values are Avro, Json, or Protobuf")
+		return nil, ErrInvalidSchemaType
 	}
 
-	// Subject exists, we just need a new version of the schema registered
 	resultFromSchemaCache, ok := mck.schemaCache[subject]
-	if ok {
-		for s, _ := range resultFromSchemaCache {
-			if s.schema == schema {
-				registeredID := s.id
-				posErr := url.Error{
-					Op:  "POST",
-					URL: mck.schemaRegistryURL + fmt.Sprintf("/subjects/%s/versions", subject),
-					Err: errors.New(fmt.Sprintf("Schema already registered with id %d", registeredID)),
-				}
-				return nil, &posErr
-			}
-		}
-
-		mck.ids.ids++
-		result := mck.generateVersion(subject, schema, schemaType)
-		return result, nil
-	} else {
-
-		//Subject does not exist, We need full registration
-		mck.ids.ids++
-		result := mck.generateVersion(subject, schema, schemaType)
-		return result, nil
+	if !ok {
+		return mck.generateVersion(id, subject, schema, schemaType), nil
 	}
+
+	// Verify if it's not the same schema as an existing version
+	for _, existing := range resultFromSchemaCache {
+		if existing.schema == schema {
+			posErr := url.Error{
+				Op:  "POST",
+				URL: fmt.Sprintf("%s/subjects/%s/versions", mck.schemaRegistryURL, subject),
+				Err: ErrSchemaAlreadyRegistered,
+			}
+			return nil, &posErr
+		}
+	}
+
+	return mck.generateVersion(id, subject, schema, schemaType), nil
 }
 
-// Returns a Schema for the given ID
-func (mck MockSchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
-	posErr := url.Error{
-		Op:  "GET",
-		URL: mck.schemaRegistryURL + fmt.Sprintf("/schemas/ids/%d", schemaID),
-		Err: errors.New("Schema ID is not registered"),
-	}
-
+// GetSchema Returns a Schema for the given ID
+func (mck *MockSchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 	thisSchema, ok := mck.idCache[schemaID]
 	if !ok {
+		posErr := url.Error{
+			Op:  "GET",
+			URL: fmt.Sprintf("%s/schemas/ids/%d", mck.schemaRegistryURL, schemaID),
+			Err: ErrSchemaNotFound,
+		}
+
 		return nil, &posErr
 	}
 	return thisSchema, nil
 }
 
-// Returns the highest ordinal version of a Schema for a given `concrete subject`
-func (mck MockSchemaRegistryClient) GetLatestSchema(subject string) (*Schema, error) {
-	versions, getSchemaVersionErr := mck.GetSchemaVersions(subject)
-	if getSchemaVersionErr != nil {
-		return nil, getSchemaVersionErr
-	}
+// GetLatestSchema Returns the highest ordinal version of a Schema for a given `concrete subject`
+func (mck *MockSchemaRegistryClient) GetLatestSchema(subject string) (*Schema, error) {
+	// Error is never returned
+	versions, _ := mck.GetSchemaVersions(subject)
 	if len(versions) == 0 {
-		return nil, errors.New("Subject not found")
+		return nil, ErrSchemaNotFound
 	}
+
 	latestVersion := versions[len(versions)-1]
-	thisSchema, err := mck.GetSchemaByVersion(subject, latestVersion)
-	if err != nil {
-		return nil, err
-	}
+
+	// This can't realistically throw an error
+	thisSchema, _ := mck.GetSchemaByVersion(subject, latestVersion)
 
 	return thisSchema, nil
 }
 
-// Returns the array of versions this subject has previously registered
-func (mck MockSchemaRegistryClient) GetSchemaVersions(subject string) ([]int, error) {
+// GetSchemaVersions Returns the array of versions this subject has previously registered
+func (mck *MockSchemaRegistryClient) GetSchemaVersions(subject string) ([]int, error) {
 	versions := mck.allVersions(subject)
 	return versions, nil
 }
 
-// Returns the given Schema according to the passed in subject and version number
-func (mck MockSchemaRegistryClient) GetSchemaByVersion(subject string, version int) (*Schema, error) {
+// GetSchemaByVersion Returns the given Schema according to the passed in subject and version number
+func (mck *MockSchemaRegistryClient) GetSchemaByVersion(subject string, version int) (*Schema, error) {
 	var schema *Schema
 	schemaVersionMap, ok := mck.schemaCache[subject]
 	if !ok {
 		posErr := url.Error{
 			Op:  "GET",
 			URL: mck.schemaRegistryURL + fmt.Sprintf("/subjects/%s/versions/%d", subject, version),
-			Err: errors.New("Subject Not found"),
+			Err: ErrSubjectNotFound,
 		}
 		return nil, &posErr
 	}
-	for schemaL, id := range schemaVersionMap {
+	for id, schemaL := range schemaVersionMap {
 		if id == version {
 			schema = schemaL
 		}
@@ -145,7 +151,7 @@ func (mck MockSchemaRegistryClient) GetSchemaByVersion(subject string, version i
 		posErr := url.Error{
 			Op:  "GET",
 			URL: mck.schemaRegistryURL + fmt.Sprintf("/subjects/%s/versions/%d", subject, version),
-			Err: errors.New("Version Not found"),
+			Err: ErrSchemaNotFound,
 		}
 		return nil, &posErr
 	}
@@ -153,97 +159,108 @@ func (mck MockSchemaRegistryClient) GetSchemaByVersion(subject string, version i
 	return schema, nil
 }
 
-// Returns all registered subjects
-func (mck MockSchemaRegistryClient) GetSubjects() ([]string, error) {
-	allSubjects := make([]string, 0, len(mck.schemaCache))
+// GetSubjects Returns all registered subjects
+func (mck *MockSchemaRegistryClient) GetSubjects() ([]string, error) {
+	var allSubjects []string
+
 	for subject := range mck.schemaCache {
 		allSubjects = append(allSubjects, subject)
 	}
+
 	return allSubjects, nil
 }
 
-// GetSubjectsIncludingDeleted returns all registered subjects including those which have been soft deleted
-func (mck MockSchemaRegistryClient) GetSubjectsIncludingDeleted() ([]string, error) {
-	return nil, errors.New("mock schema registry client can't return soft deleted subjects")
+// GetSubjectsIncludingDeleted is not implemented and returns an error
+func (mck *MockSchemaRegistryClient) GetSubjectsIncludingDeleted() ([]string, error) {
+	return nil, ErrNotImplemented
 }
 
-// DeleteSubject removes given subject from cache
-func (mck MockSchemaRegistryClient) DeleteSubject(subject string, _ bool) error {
+// DeleteSubject removes given subject from the cache
+func (mck *MockSchemaRegistryClient) DeleteSubject(subject string, _ bool) error {
 	delete(mck.schemaCache, subject)
 	return nil
 }
 
 // DeleteSubjectByVersion removes given subject's version from cache
-func (mck MockSchemaRegistryClient) DeleteSubjectByVersion(subject string, version int, _ bool) error {
+func (mck *MockSchemaRegistryClient) DeleteSubjectByVersion(subject string, version int, _ bool) error {
 	_, ok := mck.schemaCache[subject]
 	if !ok {
 		posErr := url.Error{
 			Op:  "DELETE",
-			URL: mck.schemaRegistryURL + fmt.Sprintf("/subjects/%s/versions/%d", subject, version),
-			Err: errors.New("Subject Not found"),
+			URL: fmt.Sprintf("%s/subjects/%s/versions/%d", mck.schemaRegistryURL, subject, version),
+			Err: ErrSubjectNotFound,
 		}
 		return &posErr
 	}
-	for schema, id := range mck.schemaCache[subject] {
-		if id == version {
-			delete(mck.schemaCache[subject], schema)
+
+	for schemaVersion := range mck.schemaCache[subject] {
+		if schemaVersion == version {
+			delete(mck.schemaCache[subject], schemaVersion)
 			return nil
 		}
 	}
 
 	posErr := url.Error{
 		Op:  "GET",
-		URL: mck.schemaRegistryURL + fmt.Sprintf("/subjects/%s/versions/%d", subject, version),
-		Err: errors.New("Version Not found"),
+		URL: fmt.Sprintf("%s/subjects/%s/versions/%d", mck.schemaRegistryURL, subject, version),
+		Err: ErrSchemaNotFound,
 	}
 	return &posErr
 }
 
-func (mck MockSchemaRegistryClient) ChangeSubjectCompatibilityLevel(subject string, compatibility CompatibilityLevel) (*CompatibilityLevel, error) {
-	return nil, errors.New("mock schema registry client can't change subject compatibility level")
+// ChangeSubjectCompatibilityLevel is not implemented
+func (mck *MockSchemaRegistryClient) ChangeSubjectCompatibilityLevel(string, CompatibilityLevel) (*CompatibilityLevel, error) {
+	return nil, ErrNotImplemented
 }
 
-func (mck MockSchemaRegistryClient) GetGlobalCompatibilityLevel() (*CompatibilityLevel, error) {
-	return nil, errors.New("mock schema registry client can't return global compatibility level")
+// GetGlobalCompatibilityLevel is not implemented
+func (mck *MockSchemaRegistryClient) GetGlobalCompatibilityLevel() (*CompatibilityLevel, error) {
+	return nil, ErrNotImplemented
 }
 
-func (mck MockSchemaRegistryClient) GetCompatibilityLevel(subject string, defaultToGlobal bool) (*CompatibilityLevel, error) {
-	return nil, errors.New("mock schema registry client can't return compatibility level")
+// GetCompatibilityLevel is not implemented
+func (mck *MockSchemaRegistryClient) GetCompatibilityLevel(string, bool) (*CompatibilityLevel, error) {
+	return nil, ErrNotImplemented
 }
 
-/*
-The classes below are implemented to accommodate ISchemaRegistryClient; However, they do nothing.
-*/
-func (mck MockSchemaRegistryClient) SetCredentials(username string, password string) {
+// SetCredentials is not implemented
+func (mck *MockSchemaRegistryClient) SetCredentials(string, string) {
 	// Nothing because mockSchemaRegistryClient is actually very vulnerable
 }
 
-func (mck MockSchemaRegistryClient) SetBearerToken(token string) {
+// SetBearerToken is not implemented
+func (mck *MockSchemaRegistryClient) SetBearerToken(string) {
 	// Nothing because mockSchemaRegistryClient is actually very vulnerable
 }
 
-func (mck MockSchemaRegistryClient) SetTimeout(timeout time.Duration) {
+// SetTimeout is not implemented
+func (mck *MockSchemaRegistryClient) SetTimeout(time.Duration) {
 	// Nothing because there is no timeout for cache
 }
 
-func (mck MockSchemaRegistryClient) CachingEnabled(value bool) {
+// CachingEnabled is not implemented
+func (mck *MockSchemaRegistryClient) CachingEnabled(bool) {
 	// Nothing because caching is always enabled, duh
 }
 
-func (mck MockSchemaRegistryClient) ResetCache() {
+// ResetCache is not implemented
+func (mck *MockSchemaRegistryClient) ResetCache() {
 	// Nothing because there is no lock for cache
 }
 
-func (mck MockSchemaRegistryClient) CodecCreationEnabled(value bool) {
+// CodecCreationEnabled is not implemented
+func (mck *MockSchemaRegistryClient) CodecCreationEnabled(bool) {
 	// Nothing because codecs do not matter in the inMem storage of schemas
 }
 
-func (mck MockSchemaRegistryClient) IsSchemaCompatible(subject, schema, version string, schemaType SchemaType) (bool, error) {
-	return false, errors.New("mock schema registry client can't check for schema compatibility")
+// IsSchemaCompatible is not implemented
+func (mck *MockSchemaRegistryClient) IsSchemaCompatible(string, string, string, SchemaType) (bool, error) {
+	return false, ErrNotImplemented
 }
 
-func (mck MockSchemaRegistryClient) LookupSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error) {
-	return nil, errors.New("mock schema registry client can't lookup schema")
+// LookupSchema is not implemented
+func (mck *MockSchemaRegistryClient) LookupSchema(string, string, SchemaType, ...Reference) (*Schema, error) {
+	return nil, ErrNotImplemented
 }
 
 /*
@@ -254,46 +271,47 @@ handled beforehand by the environment.
 allVersions returns an ordered int[] with all versions for a given subject. It does NOT
 qualify for key/value subjects, it expects to have a `concrete subject` passed on to do the checks.
 */
-func (mck MockSchemaRegistryClient) generateVersion(subject string, schema string, schemaType SchemaType) *Schema {
+
+// generateVersion the next version of the schema for the given subject
+func (mck *MockSchemaRegistryClient) generateVersion(id int, subject string, schema string, schemaType SchemaType) *Schema {
 	versions := mck.allVersions(subject)
-	schemaVersionMap := map[*Schema]int{}
-	var currentVersion int
-	if len(versions) == 0 {
-		currentVersion = 1
-	} else {
+	schemaVersionMap := map[int]*Schema{}
+	currentVersion := 1
+
+	if len(versions) > 0 {
 		schemaVersionMap = mck.schemaCache[subject]
 		currentVersion = versions[len(versions)-1] + 1
 	}
 
-	// creates a copy
-	typeToRegister := schemaType
-
 	codec, _ := goavro.NewCodec(schema)
 
-	schemaToRegister := Schema{
-		id:         mck.ids.ids,
+	schemaToRegister := &Schema{
+		id:         id,
 		schema:     schema,
 		version:    currentVersion,
 		codec:      codec,
-		schemaType: &typeToRegister,
+		schemaType: &schemaType,
 	}
 
-	schemaVersionMap[&schemaToRegister] = currentVersion
+	schemaVersionMap[currentVersion] = schemaToRegister
 	mck.schemaCache[subject] = schemaVersionMap
-	mck.idCache[mck.ids.ids] = &schemaToRegister
+	mck.idCache[schemaToRegister.id] = schemaToRegister
 
-	return &schemaToRegister
+	return schemaToRegister
 }
 
-func (mck MockSchemaRegistryClient) allVersions(subject string) []int {
-	versions := []int{}
+// allVersions returns all versions for a given subject, assumes it exists
+func (mck *MockSchemaRegistryClient) allVersions(subject string) []int {
+	var versions []int
 	result, ok := mck.schemaCache[subject]
+
 	if ok {
-		for _, version := range result {
+		for version := range result {
 			versions = append(versions, version)
 		}
-		sort.Ints(versions)
 	}
+
+	sort.Ints(versions)
 
 	return versions
 }
