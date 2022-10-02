@@ -38,8 +38,8 @@ type MockSchemaRegistryClient struct {
 }
 
 // CreateMockSchemaRegistryClient initializes a MockSchemaRegistryClient
-func CreateMockSchemaRegistryClient(mockURL string) MockSchemaRegistryClient {
-	mockClient := MockSchemaRegistryClient{
+func CreateMockSchemaRegistryClient(mockURL string) *MockSchemaRegistryClient {
+	mockClient := &MockSchemaRegistryClient{
 		schemaRegistryURL: mockURL,
 		schemaCache:       map[string]map[int]*Schema{},
 		idCache:           map[int]*Schema{},
