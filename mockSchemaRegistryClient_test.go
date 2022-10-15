@@ -5,8 +5,15 @@ import (
 	"testing"
 )
 
-var avroType = Avro
-var protobuf = Protobuf
+var (
+	avroType = Avro
+	protobuf = Protobuf
+)
+
+var (
+	testSchema1 = `{"type": "record", "name": "cupcake", "fields": [{"name": "flavor", "type": "string"}]}`
+	testSchema2 = `{"type": "record", "name": "bakery", "fields": [{"name": "number", "type": "int"}]}`
+)
 
 func TestMockSchemaRegistryClient_CreateSchema_RegistersSchemaCorrectly(t *testing.T) {
 	tests := map[string]struct {
@@ -21,7 +28,7 @@ func TestMockSchemaRegistryClient_CreateSchema_RegistersSchemaCorrectly(t *testi
 	}{
 		"new avro schema": {
 			subject:    "cupcake",
-			schema:     `{"type": "record", "name": "cupcake", "fields": [{"name": "flavor", "type": "string"}]}`,
+			schema:     testSchema1,
 			schemaType: Avro,
 
 			currentIdCounter:      1,
@@ -31,12 +38,12 @@ func TestMockSchemaRegistryClient_CreateSchema_RegistersSchemaCorrectly(t *testi
 				id:         2,
 				version:    1,
 				schemaType: &avroType,
-				schema:     `{"type": "record", "name": "cupcake", "fields": [{"name": "flavor", "type": "string"}]}`,
+				schema:     testSchema1,
 			},
 		},
 		"existing avro schema": {
 			subject:    "bakery",
-			schema:     `{"type": "record", "name": "bakery", "fields": [{"name": "number", "type": "int"}]}`,
+			schema:     testSchema2,
 			schemaType: Avro,
 
 			currentIdCounter:      6,
@@ -46,12 +53,12 @@ func TestMockSchemaRegistryClient_CreateSchema_RegistersSchemaCorrectly(t *testi
 				id:         7,
 				version:    11,
 				schemaType: &avroType,
-				schema:     `{"type": "record", "name": "bakery", "fields": [{"name": "number", "type": "int"}]}`,
+				schema:     testSchema2,
 			},
 		},
 		"new protobuf schema": {
 			subject:    "bakery",
-			schema:     `{"type": "record", "name": "bakery", "fields": [{"name": "number", "type": "int"}]}`,
+			schema:     testSchema2,
 			schemaType: protobuf,
 
 			currentIdCounter:      23,
@@ -61,7 +68,7 @@ func TestMockSchemaRegistryClient_CreateSchema_RegistersSchemaCorrectly(t *testi
 				id:         24,
 				version:    76,
 				schemaType: &protobuf,
-				schema:     `{"type": "record", "name": "bakery", "fields": [{"name": "number", "type": "int"}]}`,
+				schema:     testSchema2,
 			},
 		},
 	}
@@ -111,7 +118,7 @@ func TestMockSchemaRegistryClient_SetSchema_RegistersSchemaCorrectly(t *testing.
 	}{
 		"new avro schema": {
 			subject:    "cupcake",
-			schema:     `{"type": "record", "name": "cupcake", "fields": [{"name": "flavor", "type": "string"}]}`,
+			schema:     testSchema1,
 			schemaType: Avro,
 			id:         52,
 			version:    -1,
@@ -122,12 +129,12 @@ func TestMockSchemaRegistryClient_SetSchema_RegistersSchemaCorrectly(t *testing.
 				id:         52,
 				version:    1,
 				schemaType: &avroType,
-				schema:     `{"type": "record", "name": "cupcake", "fields": [{"name": "flavor", "type": "string"}]}`,
+				schema:     testSchema1,
 			},
 		},
 		"existing avro schema": {
 			subject:    "bakery",
-			schema:     `{"type": "record", "name": "bakery", "fields": [{"name": "number", "type": "int"}]}`,
+			schema:     testSchema2,
 			schemaType: Avro,
 			id:         7,
 			version:    -1,
@@ -138,12 +145,12 @@ func TestMockSchemaRegistryClient_SetSchema_RegistersSchemaCorrectly(t *testing.
 				id:         7,
 				version:    11,
 				schemaType: &avroType,
-				schema:     `{"type": "record", "name": "bakery", "fields": [{"name": "number", "type": "int"}]}`,
+				schema:     testSchema2,
 			},
 		},
 		"new protobuf schema": {
 			subject:    "bakery",
-			schema:     `{"type": "record", "name": "bakery", "fields": [{"name": "number", "type": "int"}]}`,
+			schema:     testSchema2,
 			schemaType: Protobuf,
 			id:         24,
 			version:    -1,
@@ -154,12 +161,12 @@ func TestMockSchemaRegistryClient_SetSchema_RegistersSchemaCorrectly(t *testing.
 				id:         24,
 				version:    76,
 				schemaType: &protobuf,
-				schema:     `{"type": "record", "name": "bakery", "fields": [{"name": "number", "type": "int"}]}`,
+				schema:     testSchema2,
 			},
 		},
 		"with given version": {
 			subject:    "bakery",
-			schema:     `{"type": "record", "name": "bakery", "fields": [{"name": "number", "type": "int"}]}`,
+			schema:     testSchema2,
 			schemaType: Avro,
 			id:         7,
 			version:    634,
@@ -168,7 +175,7 @@ func TestMockSchemaRegistryClient_SetSchema_RegistersSchemaCorrectly(t *testing.
 				id:         7,
 				version:    634,
 				schemaType: &avroType,
-				schema:     `{"type": "record", "name": "bakery", "fields": [{"name": "number", "type": "int"}]}`,
+				schema:     testSchema2,
 			},
 		},
 	}
