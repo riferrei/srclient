@@ -256,7 +256,7 @@ func (mck *MockSchemaRegistryClient) CodecCreationEnabled(bool) {
 }
 
 // IsSchemaCompatible is not implemented
-func (mck *MockSchemaRegistryClient) IsSchemaCompatible(string, string, string, SchemaType) (bool, error) {
+func (mck *MockSchemaRegistryClient) IsSchemaCompatible(string, string, string, SchemaType, ...Reference) (bool, error) {
 	return false, errNotImplemented
 }
 

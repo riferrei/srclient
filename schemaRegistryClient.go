@@ -43,7 +43,7 @@ type ISchemaRegistryClient interface {
 	CachingEnabled(value bool)
 	ResetCache()
 	CodecCreationEnabled(value bool)
-	IsSchemaCompatible(subject, schema, version string, schemaType SchemaType) (bool, error)
+	IsSchemaCompatible(subject, schema, version string, schemaType SchemaType, references ...Reference) (bool, error)
 }
 
 // SchemaRegistryClient allows interactions with
@@ -490,8 +490,12 @@ func (client *SchemaRegistryClient) LookupSchema(subject string, schema string, 
 
 // IsSchemaCompatible checks if the given schema is compatible with the given subject and version
 // valid versions are versionID and "latest"
-func (client *SchemaRegistryClient) IsSchemaCompatible(subject, schema, version string, schemaType SchemaType) (bool, error) {
-	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType.String(), References: make([]Reference, 0)}
+func (client *SchemaRegistryClient) IsSchemaCompatible(subject, schema, version string, schemaType SchemaType, references ...Reference) (bool, error) {
+	if references == nil {
+		references = make([]Reference, 0)
+	}
+
+	schemaReq := schemaRequest{Schema: schema, SchemaType: schemaType.String(), References: references}
 	schemaReqBytes, err := json.Marshal(schemaReq)
 	if err != nil {
 		return false, err
