@@ -604,40 +604,58 @@ func TestNewSchema(t *testing.T) {
 }
 
 func TestSchemaRequestMarshal(t *testing.T) {
-	tests := []struct{
+	tests := map[string]struct{
 		schema string
 		schemaType SchemaType
 		references []Reference
 		expected string
 	}{
-		{
+		"avro": {
 			schema: `test2`,
 			schemaType: Avro,
 			expected: `{"schema":"test2"}`,
 		},
-		{
+		"protobuf": {
 			schema: `test2`,
 			schemaType: Protobuf,
 			expected: `{"schema":"test2","schemaType":"PROTOBUF"}`,
 		},
-		{
+		"json": {
 			schema: `test2`,
 			schemaType: Json,
 			expected: `{"schema":"test2","schemaType":"JSON"}`,
 		},
-		{
+		"avro-empty-ref": {
+			schema: `test2`,
+			schemaType: Avro,
+			references: make([]Reference, 0),
+			expected: `{"schema":"test2"}`,
+		},
+		"protobuf-empty-ref": {
+			schema: `test2`,
+			schemaType: Protobuf,
+			references: make([]Reference, 0),
+			expected: `{"schema":"test2","schemaType":"PROTOBUF"}`,
+		},
+		"json-empty-ref": {
+			schema: `test2`,
+			schemaType: Json,
+			references: make([]Reference, 0),
+			expected: `{"schema":"test2","schemaType":"JSON"}`,
+		},
+		"avro-ref": {
 			schema: `test2`,
 			schemaType: Avro,
 			references: []Reference{{Name: "name1", Subject: "subject1", Version: 1}},
 			expected: `{"schema":"test2","references":[{"name":"name1","subject":"subject1","version":1}]}`,
 		},
-		{
+		"protobuf-ref": {
 			schema: `test2`,
 			schemaType: Protobuf,
 			references: []Reference{{Name: "name1", Subject: "subject1", Version: 1}},
 			expected: `{"schema":"test2","schemaType":"PROTOBUF","references":[{"name":"name1","subject":"subject1","version":1}]}`,
 		},
-		{
+		"json-ref": {
 			schema: `test2`,
 			schemaType: Json,
 			references: []Reference{{Name: "name1", Subject: "subject1", Version: 1}},
@@ -645,16 +663,16 @@ func TestSchemaRequestMarshal(t *testing.T) {
 		},
 	}
 
-	for i, test := range tests {
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
+	for name, testData := range tests {
+		t.Run(name, func(t *testing.T) {
 			schemaReq := schemaRequest{
-				Schema: test.schema,
-				SchemaType: test.schemaType.String(),
-				References: test.references,
+				Schema: testData.schema,
+				SchemaType: testData.schemaType.String(),
+				References: testData.references,
 			}
 			actual, err := json.Marshal(schemaReq)
 			assert.NoError(t, err)
-			assert.Equal(t, test.expected, string(actual))
+			assert.Equal(t, testData.expected, string(actual))
 		})
 	}
 }
