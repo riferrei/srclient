@@ -77,6 +77,8 @@ const (
 )
 
 func (s SchemaType) String() string {
+	// Avro is the default schemaType.
+	// Returning "" omits schemaType from the schemaRequest JSON for compatibility with older API versions.
 	if s == Avro {
 		return ""
 	}
