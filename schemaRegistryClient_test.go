@@ -603,6 +603,80 @@ func TestNewSchema(t *testing.T) {
 	}
 }
 
+func TestSchemaRequestMarshal(t *testing.T) {
+	tests := map[string]struct{
+		schema string
+		schemaType SchemaType
+		references []Reference
+		expected string
+	}{
+		"avro": {
+			schema: `test2`,
+			schemaType: Avro,
+			expected: `{"schema":"test2"}`,
+		},
+		"protobuf": {
+			schema: `test2`,
+			schemaType: Protobuf,
+			expected: `{"schema":"test2","schemaType":"PROTOBUF"}`,
+		},
+		"json": {
+			schema: `test2`,
+			schemaType: Json,
+			expected: `{"schema":"test2","schemaType":"JSON"}`,
+		},
+		"avro-empty-ref": {
+			schema: `test2`,
+			schemaType: Avro,
+			references: make([]Reference, 0),
+			expected: `{"schema":"test2"}`,
+		},
+		"protobuf-empty-ref": {
+			schema: `test2`,
+			schemaType: Protobuf,
+			references: make([]Reference, 0),
+			expected: `{"schema":"test2","schemaType":"PROTOBUF"}`,
+		},
+		"json-empty-ref": {
+			schema: `test2`,
+			schemaType: Json,
+			references: make([]Reference, 0),
+			expected: `{"schema":"test2","schemaType":"JSON"}`,
+		},
+		"avro-ref": {
+			schema: `test2`,
+			schemaType: Avro,
+			references: []Reference{{Name: "name1", Subject: "subject1", Version: 1}},
+			expected: `{"schema":"test2","references":[{"name":"name1","subject":"subject1","version":1}]}`,
+		},
+		"protobuf-ref": {
+			schema: `test2`,
+			schemaType: Protobuf,
+			references: []Reference{{Name: "name1", Subject: "subject1", Version: 1}},
+			expected: `{"schema":"test2","schemaType":"PROTOBUF","references":[{"name":"name1","subject":"subject1","version":1}]}`,
+		},
+		"json-ref": {
+			schema: `test2`,
+			schemaType: Json,
+			references: []Reference{{Name: "name1", Subject: "subject1", Version: 1}},
+			expected: `{"schema":"test2","schemaType":"JSON","references":[{"name":"name1","subject":"subject1","version":1}]}`,
+		},
+	}
+
+	for name, testData := range tests {
+		t.Run(name, func(t *testing.T) {
+			schemaReq := schemaRequest{
+				Schema: testData.schema,
+				SchemaType: testData.schemaType.String(),
+				References: testData.references,
+			}
+			actual, err := json.Marshal(schemaReq)
+			assert.NoError(t, err)
+			assert.Equal(t, testData.expected, string(actual))
+		})
+	}
+}
+
 func mockServerFromSubjectVersionPairWithSchemaResponse(t *testing.T, subject, version string, schemaResponse schemaResponse) (*httptest.Server, *int) {
 	return mockServerWithSchemaResponse(t, fmt.Sprintf("/subjects/%s/versions/%s", subject, version), schemaResponse)
 }

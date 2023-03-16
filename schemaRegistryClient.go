@@ -77,6 +77,12 @@ const (
 )
 
 func (s SchemaType) String() string {
+	// Avro is the default schemaType.
+	// Returning "" omits schemaType from the schemaRequest JSON for compatibility with older API versions.
+	if s == Avro {
+		return ""
+	}
+
 	return string(s)
 }
 
@@ -130,8 +136,8 @@ type credentials struct {
 
 type schemaRequest struct {
 	Schema     string      `json:"schema"`
-	SchemaType string      `json:"schemaType"`
-	References []Reference `json:"references"`
+	SchemaType string      `json:"schemaType,omitempty"`
+	References []Reference `json:"references,omitempty"`
 }
 
 type schemaResponse struct {
