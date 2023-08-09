@@ -16,23 +16,23 @@ var (
 )
 
 func TestMockSchemaRegistryClient_CreateSchema_RegistersSchemaCorrectly(t *testing.T) {
+	t.Parallel()
 	tests := map[string]struct {
 		subject    string
 		schema     string
 		schemaType SchemaType
 
-		currentIdCounter      int
-		existingSchemaCounter int
+		currentIdCounter int
+		existingSchemas  map[int]string
 
 		expectedSchema *Schema
 	}{
-		"new avro schema": {
+		"first avro schema": {
 			subject:    "cupcake",
 			schema:     testSchema1,
 			schemaType: Avro,
 
-			currentIdCounter:      1,
-			existingSchemaCounter: 0,
+			currentIdCounter: 1,
 
 			expectedSchema: &Schema{
 				id:         2,
@@ -41,13 +41,15 @@ func TestMockSchemaRegistryClient_CreateSchema_RegistersSchemaCorrectly(t *testi
 				schema:     testSchema1,
 			},
 		},
-		"existing avro schema": {
+		"second avro schema": {
 			subject:    "bakery",
 			schema:     testSchema2,
 			schemaType: Avro,
 
-			currentIdCounter:      6,
-			existingSchemaCounter: 10,
+			currentIdCounter: 6,
+			existingSchemas: map[int]string{
+				10: testSchema1,
+			},
 
 			expectedSchema: &Schema{
 				id:         7,
@@ -56,13 +58,15 @@ func TestMockSchemaRegistryClient_CreateSchema_RegistersSchemaCorrectly(t *testi
 				schema:     testSchema2,
 			},
 		},
-		"new protobuf schema": {
+		"second protobuf schema": {
 			subject:    "bakery",
 			schema:     testSchema2,
 			schemaType: protobuf,
 
-			currentIdCounter:      23,
-			existingSchemaCounter: 75,
+			currentIdCounter: 23,
+			existingSchemas: map[int]string{
+				75: testSchema1,
+			},
 
 			expectedSchema: &Schema{
 				id:         24,
@@ -74,16 +78,18 @@ func TestMockSchemaRegistryClient_CreateSchema_RegistersSchemaCorrectly(t *testi
 	}
 
 	for name, testData := range tests {
+		testData := testData
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			// Arrange
 			registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 			registry.idCounter = testData.currentIdCounter
 
 			// Add existing schemas
-			if testData.existingSchemaCounter > 0 {
-				registry.schemaCache[testData.subject] = map[int]*Schema{}
-				for i := 1; i <= testData.existingSchemaCounter; i++ {
-					registry.schemaCache[testData.subject][i] = new(Schema)
+			for version, schema := range testData.existingSchemas {
+				_, err := registry.SetSchema(-1, testData.subject, schema, testData.schemaType, version)
+				if err != nil {
+					t.Fatal(err)
 				}
 			}
 
@@ -91,20 +97,21 @@ func TestMockSchemaRegistryClient_CreateSchema_RegistersSchemaCorrectly(t *testi
 			schema, err := registry.CreateSchema(testData.subject, testData.schema, testData.schemaType)
 
 			// Assert
-			if assert.Nil(t, err) {
+			if assert.NoError(t, err) {
 				assert.Equal(t, testData.expectedSchema.id, schema.id)
 				assert.Equal(t, testData.expectedSchema.version, schema.version)
 				assert.Equal(t, testData.expectedSchema.schemaType, schema.schemaType)
 				assert.Equal(t, testData.expectedSchema.schema, schema.schema)
 
-				assert.Equal(t, schema, registry.idCache[schema.id])
-				assert.Equal(t, schema, registry.schemaCache[testData.subject][schema.version])
+				assert.Equal(t, schema, registry.schemaIDs[schema.id])
+				assert.Equal(t, schema, registry.schemaVersions[testData.subject][schema.version])
 			}
 		})
 	}
 }
 
 func TestMockSchemaRegistryClient_SetSchema_RegistersSchemaCorrectly(t *testing.T) {
+	t.Parallel()
 	tests := map[string]struct {
 		subject    string
 		schema     string
@@ -112,18 +119,16 @@ func TestMockSchemaRegistryClient_SetSchema_RegistersSchemaCorrectly(t *testing.
 		id         int
 		version    int
 
-		existingSchemaCounter int
+		existingSchemas map[int]string
 
 		expectedSchema *Schema
 	}{
-		"new avro schema": {
+		"first avro schema": {
 			subject:    "cupcake",
 			schema:     testSchema1,
 			schemaType: Avro,
 			id:         52,
-			version:    -1,
-
-			existingSchemaCounter: 0,
+			version:    -1, // Ensures it's generated
 
 			expectedSchema: &Schema{
 				id:         52,
@@ -132,34 +137,34 @@ func TestMockSchemaRegistryClient_SetSchema_RegistersSchemaCorrectly(t *testing.
 				schema:     testSchema1,
 			},
 		},
-		"existing avro schema": {
+		"second avro schema": {
 			subject:    "bakery",
 			schema:     testSchema2,
 			schemaType: Avro,
 			id:         7,
-			version:    -1,
+			version:    -1, // Ensures it's generated
 
-			existingSchemaCounter: 10,
+			existingSchemas: map[int]string{
+				1: testSchema1,
+			},
 
 			expectedSchema: &Schema{
 				id:         7,
-				version:    11,
+				version:    2,
 				schemaType: &avroType,
 				schema:     testSchema2,
 			},
 		},
-		"new protobuf schema": {
+		"first protobuf schema": {
 			subject:    "bakery",
 			schema:     testSchema2,
 			schemaType: Protobuf,
 			id:         24,
-			version:    -1,
-
-			existingSchemaCounter: 75,
+			version:    -1, // Ensures it's generated
 
 			expectedSchema: &Schema{
 				id:         24,
-				version:    76,
+				version:    1,
 				schemaType: &protobuf,
 				schema:     testSchema2,
 			},
@@ -181,15 +186,17 @@ func TestMockSchemaRegistryClient_SetSchema_RegistersSchemaCorrectly(t *testing.
 	}
 
 	for name, testData := range tests {
+		testData := testData
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			// Arrange
 			registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
 			// Add existing schemas
-			if testData.existingSchemaCounter > 0 {
-				registry.schemaCache[testData.subject] = map[int]*Schema{}
-				for i := 1; i <= testData.existingSchemaCounter; i++ {
-					registry.schemaCache[testData.subject][i] = new(Schema)
+			for version, schema := range testData.existingSchemas {
+				_, err := registry.SetSchema(-1, testData.subject, schema, testData.schemaType, version)
+				if err != nil {
+					t.Fatal(err)
 				}
 			}
 
@@ -197,20 +204,21 @@ func TestMockSchemaRegistryClient_SetSchema_RegistersSchemaCorrectly(t *testing.
 			schema, err := registry.SetSchema(testData.id, testData.subject, testData.schema, testData.schemaType, testData.version)
 
 			// Assert
-			if assert.Nil(t, err) {
+			if assert.NoError(t, err) {
 				assert.Equal(t, testData.expectedSchema.id, schema.id)
 				assert.Equal(t, testData.expectedSchema.version, schema.version)
 				assert.Equal(t, testData.expectedSchema.schemaType, schema.schemaType)
 				assert.Equal(t, testData.expectedSchema.schema, schema.schema)
 
-				assert.Equal(t, schema, registry.idCache[schema.id])
-				assert.Equal(t, schema, registry.schemaCache[testData.subject][schema.version])
+				assert.Equal(t, schema, registry.schemaIDs[schema.id])
+				assert.Equal(t, schema, registry.schemaVersions[testData.subject][schema.version])
 			}
 		})
 	}
 }
 
 func TestMockSchemaRegistryClient_SetSchema_CorrectlyUpdatesIdCounter(t *testing.T) {
+	t.Parallel()
 	tests := map[string]struct {
 		currentId  int
 		newId      int
@@ -234,7 +242,9 @@ func TestMockSchemaRegistryClient_SetSchema_CorrectlyUpdatesIdCounter(t *testing
 	}
 
 	for name, testData := range tests {
+		testData := testData
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			// Arrange
 			registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 			registry.idCounter = testData.currentId
@@ -249,6 +259,7 @@ func TestMockSchemaRegistryClient_SetSchema_CorrectlyUpdatesIdCounter(t *testing
 }
 
 func TestMockSchemaRegistryClient_CreateSchema_ReturnsErrorOnInvalidSchemaType(t *testing.T) {
+	t.Parallel()
 	// Arrange
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
@@ -261,10 +272,11 @@ func TestMockSchemaRegistryClient_CreateSchema_ReturnsErrorOnInvalidSchemaType(t
 }
 
 func TestMockSchemaRegistryClient_CreateSchema_ReturnsErrorOnDuplicateSchema(t *testing.T) {
+	t.Parallel()
 	// Arrange
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
-	registry.schemaCache["cupcake"] = map[int]*Schema{
+	registry.schemaVersions["cupcake"] = map[int]*Schema{
 		23: {
 			schema: "{}",
 		},
@@ -279,12 +291,13 @@ func TestMockSchemaRegistryClient_CreateSchema_ReturnsErrorOnDuplicateSchema(t *
 }
 
 func TestMockSchemaRegistryClient_GetSchema_ReturnsSchema(t *testing.T) {
+	t.Parallel()
 	// Arrange
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
 	schema := &Schema{}
 
-	registry.idCache = map[int]*Schema{
+	registry.schemaIDs = map[int]*Schema{
 		234: schema,
 	}
 
@@ -297,6 +310,7 @@ func TestMockSchemaRegistryClient_GetSchema_ReturnsSchema(t *testing.T) {
 }
 
 func TestMockSchemaRegistryClient_GetSchema_ReturnsErrOnNotFound(t *testing.T) {
+	t.Parallel()
 	// Arrange
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
@@ -310,6 +324,7 @@ func TestMockSchemaRegistryClient_GetSchema_ReturnsErrOnNotFound(t *testing.T) {
 }
 
 func TestMockSchemaRegistryClient_GetLatestSchema_ReturnsErrorOn0SchemaVersions(t *testing.T) {
+	t.Parallel()
 	// Arrange
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
@@ -322,6 +337,7 @@ func TestMockSchemaRegistryClient_GetLatestSchema_ReturnsErrorOn0SchemaVersions(
 }
 
 func TestMockSchemaRegistryClient_GetLatestSchema_ReturnsExpectedSchema(t *testing.T) {
+	t.Parallel()
 	tests := map[string]struct {
 		subject         string
 		existingSchemas map[int]*Schema
@@ -344,10 +360,12 @@ func TestMockSchemaRegistryClient_GetLatestSchema_ReturnsExpectedSchema(t *testi
 	}
 
 	for name, testData := range tests {
+		testData := testData
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			// Arrange
 			registry := CreateMockSchemaRegistryClient("http://localhost:8081")
-			registry.schemaCache[testData.subject] = testData.existingSchemas
+			registry.schemaVersions[testData.subject] = testData.existingSchemas
 
 			// Act
 			result, err := registry.GetLatestSchema(testData.subject)
@@ -361,9 +379,10 @@ func TestMockSchemaRegistryClient_GetLatestSchema_ReturnsExpectedSchema(t *testi
 }
 
 func TestMockSchemaRegistryClient_GetSchemaVersions_ReturnsSchemaVersions(t *testing.T) {
+	t.Parallel()
 	// Arrange
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
-	registry.schemaCache["cupcake"] = map[int]*Schema{
+	registry.schemaVersions["cupcake"] = map[int]*Schema{
 		1: {id: 1},
 		2: {id: 2},
 		3: {id: 3},
@@ -379,6 +398,7 @@ func TestMockSchemaRegistryClient_GetSchemaVersions_ReturnsSchemaVersions(t *tes
 }
 
 func TestMockSchemaRegistryClient_GetSchemaByVersion_ReturnsErrorOnSubjectNotFound(t *testing.T) {
+	t.Parallel()
 	// Arrange
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
@@ -391,9 +411,10 @@ func TestMockSchemaRegistryClient_GetSchemaByVersion_ReturnsErrorOnSubjectNotFou
 }
 
 func TestMockSchemaRegistryClient_GetSchemaByVersion_ReturnsErrorOnSchemaNotFound(t *testing.T) {
+	t.Parallel()
 	// Arrange
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
-	registry.schemaCache = map[string]map[int]*Schema{
+	registry.schemaVersions = map[string]map[int]*Schema{
 		"cupcake": {},
 	}
 
@@ -406,6 +427,7 @@ func TestMockSchemaRegistryClient_GetSchemaByVersion_ReturnsErrorOnSchemaNotFoun
 }
 
 func TestMockSchemaRegistryClient_GetSchemaByVersion_ReturnsSchema(t *testing.T) {
+	t.Parallel()
 	tests := map[string]struct {
 		subject string
 		version int
@@ -434,10 +456,12 @@ func TestMockSchemaRegistryClient_GetSchemaByVersion_ReturnsSchema(t *testing.T)
 	}
 
 	for name, testData := range tests {
+		testData := testData
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			// Arrange
 			registry := CreateMockSchemaRegistryClient("http://localhost:8081")
-			registry.schemaCache[testData.subject] = testData.existingSchemas
+			registry.schemaVersions[testData.subject] = testData.existingSchemas
 
 			// Act
 			result, err := registry.GetSchemaByVersion(testData.subject, testData.version)
@@ -451,9 +475,10 @@ func TestMockSchemaRegistryClient_GetSchemaByVersion_ReturnsSchema(t *testing.T)
 }
 
 func TestMockSchemaRegistryClient_GetSubjects_ReturnsAllSubjects(t *testing.T) {
+	t.Parallel()
 	// Arrange
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
-	registry.schemaCache = map[string]map[int]*Schema{
+	registry.schemaVersions = map[string]map[int]*Schema{
 		"1": {},
 		"2": {},
 		"3": {},
@@ -470,6 +495,7 @@ func TestMockSchemaRegistryClient_GetSubjects_ReturnsAllSubjects(t *testing.T) {
 }
 
 func TestMockSchemaRegistryClient_GetSubjectsIncludingDeleted_IsNotImplemented(t *testing.T) {
+	t.Parallel()
 	// Arrange
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
@@ -482,8 +508,9 @@ func TestMockSchemaRegistryClient_GetSubjectsIncludingDeleted_IsNotImplemented(t
 }
 
 func TestMockSchemaRegistryClient_DeleteSubject_DeletesSubject(t *testing.T) {
+	t.Parallel()
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
-	registry.schemaCache = map[string]map[int]*Schema{
+	registry.schemaVersions = map[string]map[int]*Schema{
 		"b": {},
 	}
 
@@ -492,12 +519,13 @@ func TestMockSchemaRegistryClient_DeleteSubject_DeletesSubject(t *testing.T) {
 
 	// Assert
 	assert.Nil(t, err)
-	assert.Equal(t, map[string]map[int]*Schema{}, registry.schemaCache)
+	assert.Equal(t, map[string]map[int]*Schema{}, registry.schemaVersions)
 }
 
 func TestMockSchemaRegistryClient_DeleteSubjectByVersion_DeletesSubjectVersion(t *testing.T) {
+	t.Parallel()
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
-	registry.schemaCache = map[string]map[int]*Schema{
+	registry.schemaVersions = map[string]map[int]*Schema{
 		"b": {
 			1: {id: 1},
 			2: {id: 2},
@@ -510,12 +538,13 @@ func TestMockSchemaRegistryClient_DeleteSubjectByVersion_DeletesSubjectVersion(t
 
 	// Assert
 	assert.Nil(t, err)
-	if assert.NotNil(t, registry.schemaCache["b"]) {
-		assert.Nil(t, registry.schemaCache["b"][2])
+	if assert.NotNil(t, registry.schemaVersions["b"]) {
+		assert.Nil(t, registry.schemaVersions["b"][2])
 	}
 }
 
 func TestMockSchemaRegistryClient_DeleteSubjectByVersion_ReturnsErrorOnSubjectNotFound(t *testing.T) {
+	t.Parallel()
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
 	// Act
@@ -526,8 +555,9 @@ func TestMockSchemaRegistryClient_DeleteSubjectByVersion_ReturnsErrorOnSubjectNo
 }
 
 func TestMockSchemaRegistryClient_DeleteSubjectByVersion_ReturnsErrorOnVersionNotFound(t *testing.T) {
+	t.Parallel()
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
-	registry.schemaCache = map[string]map[int]*Schema{
+	registry.schemaVersions = map[string]map[int]*Schema{
 		"cupcake": {
 			1: {id: 1},
 			3: {id: 3},
@@ -542,6 +572,7 @@ func TestMockSchemaRegistryClient_DeleteSubjectByVersion_ReturnsErrorOnVersionNo
 }
 
 func TestMockSchemaRegistryClient_ChangeSubjectCompatibilityLevel_IsNotImplemented(t *testing.T) {
+	t.Parallel()
 	// Arrange
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
@@ -554,6 +585,7 @@ func TestMockSchemaRegistryClient_ChangeSubjectCompatibilityLevel_IsNotImplement
 }
 
 func TestMockSchemaRegistryClient_GetGlobalCompatibilityLevel_IsNotImplemented(t *testing.T) {
+	t.Parallel()
 	// Arrange
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
@@ -566,6 +598,7 @@ func TestMockSchemaRegistryClient_GetGlobalCompatibilityLevel_IsNotImplemented(t
 }
 
 func TestMockSchemaRegistryClient_GetCompatibilityLevel_IsNotImplemented(t *testing.T) {
+	t.Parallel()
 	// Arrange
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
@@ -578,6 +611,7 @@ func TestMockSchemaRegistryClient_GetCompatibilityLevel_IsNotImplemented(t *test
 }
 
 func TestMockSchemaRegistryClient_IsSchemaCompatible_IsNotImplemented(t *testing.T) {
+	t.Parallel()
 	// Arrange
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
@@ -590,6 +624,7 @@ func TestMockSchemaRegistryClient_IsSchemaCompatible_IsNotImplemented(t *testing
 }
 
 func TestMockSchemaRegistryClient_LookupSchema_IsNotImplemented(t *testing.T) {
+	t.Parallel()
 	// Arrange
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
