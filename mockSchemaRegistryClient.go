@@ -76,7 +76,7 @@ func (mck *MockSchemaRegistryClient) SetSchema(id int, subject string, schema st
 
 	resultFromSchemaCache, ok := mck.schemaCache[subject]
 	if !ok {
-		return mck.generateVersion(id, subject, schema, schemaType, version), nil
+		return mck.generateVersion(id, subject, schema, schemaType, version)
 	}
 
 	// Verify if it's not the same schema as an existing version
@@ -91,7 +91,7 @@ func (mck *MockSchemaRegistryClient) SetSchema(id int, subject string, schema st
 		}
 	}
 
-	return mck.generateVersion(id, subject, schema, schemaType, version), nil
+	return mck.generateVersion(id, subject, schema, schemaType, version)
 }
 
 // GetSchema Returns a Schema for the given ID
@@ -275,7 +275,7 @@ qualify for key/value subjects, it expects to have a `concrete subject` passed o
 */
 
 // generateVersion the next version of the schema for the given subject, givenVersion can be set to -1 to generate one.
-func (mck *MockSchemaRegistryClient) generateVersion(id int, subject string, schema string, schemaType SchemaType, givenVersion int) *Schema {
+func (mck *MockSchemaRegistryClient) generateVersion(id int, subject string, schema string, schemaType SchemaType, givenVersion int) (*Schema, error) {
 	versions := mck.allVersions(subject)
 	schemaVersionMap := map[int]*Schema{}
 	currentVersion := 1
@@ -292,7 +292,10 @@ func (mck *MockSchemaRegistryClient) generateVersion(id int, subject string, sch
 	}
 
 	// Add a codec, required otherwise Codec() panics
-	codec, _ := goavro.NewCodec(schema)
+	codec, err := goavro.NewCodec(schema)
+	if err != nil {
+		return nil, err
+	}
 
 	schemaToRegister := &Schema{
 		id:         id,
@@ -306,7 +309,7 @@ func (mck *MockSchemaRegistryClient) generateVersion(id int, subject string, sch
 	mck.schemaCache[subject] = schemaVersionMap
 	mck.idCache[schemaToRegister.id] = schemaToRegister
 
-	return schemaToRegister
+	return schemaToRegister, nil
 }
 
 // allVersions returns all versions for a given subject, assumes it exists
