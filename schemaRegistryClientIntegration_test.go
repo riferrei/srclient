@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package srclient
@@ -14,6 +15,7 @@ var srclientUrl string = os.Getenv(srclientUrlEnvName)
 var client *SchemaRegistryClient = CreateSchemaRegistryClient(srclientUrl)
 
 func TestGetSubjects(t *testing.T) {
+	t.Parallel()
 	subjects, err := client.GetSubjects()
 	if err != nil {
 		t.Fatal(err.Error())
@@ -22,6 +24,7 @@ func TestGetSubjects(t *testing.T) {
 }
 
 func TestCreateSchema(t *testing.T) {
+	t.Parallel()
 	subject := "LongList"
 	schema := `{
 		"type": "record",

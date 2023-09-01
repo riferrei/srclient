@@ -23,6 +23,7 @@ func bodyToString(in io.ReadCloser) string {
 }
 
 func TestSchemaRegistryClient_CreateSchemaWithoutReferences(t *testing.T) {
+	t.Parallel()
 
 	{
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
@@ -112,6 +113,7 @@ func TestSchemaRegistryClient_CreateSchemaWithoutReferences(t *testing.T) {
 }
 
 func TestSchemaRegistryClient_LookupSchemaWithoutReferences(t *testing.T) {
+	t.Parallel()
 	var errorCode int
 	var errorMessage string
 	{
@@ -284,6 +286,7 @@ func TestSchemaRegistryClient_LookupSchemaWithoutReferences(t *testing.T) {
 }
 
 func TestSchemaRegistryClient_GetSchemaByIDWithReferences(t *testing.T) {
+	t.Parallel()
 	{
 		refs := []Reference{
 			{Name: "name1", Subject: "subject1", Version: 1},
@@ -350,6 +353,7 @@ func TestSchemaRegistryClient_GetSchemaByIDWithReferences(t *testing.T) {
 }
 
 func TestSchemaRegistryClient_GetSchemaByVersionWithReferences(t *testing.T) {
+	t.Parallel()
 	{
 		refs := []Reference{
 			{Name: "name1", Subject: "subject1", Version: 1},
@@ -416,6 +420,7 @@ func TestSchemaRegistryClient_GetSchemaByVersionWithReferences(t *testing.T) {
 }
 
 func TestSchemaRegistryClient_GetSchemaByVersionReturnsValueFromCache(t *testing.T) {
+	t.Parallel()
 	{
 		server, call := mockServerFromSubjectVersionPairWithSchemaResponse(t, "test1", "1", schemaResponse{
 			Subject:    "test1",
@@ -441,6 +446,7 @@ func TestSchemaRegistryClient_GetSchemaByVersionReturnsValueFromCache(t *testing
 }
 
 func TestSchemaRegistryClient_GetLatestSchemaReturnsValueFromCache(t *testing.T) {
+	t.Parallel()
 	server, call := mockServerFromSubjectVersionPairWithSchemaResponse(t, "test1-value", "latest", schemaResponse{
 		Subject:    "test1",
 		Version:    1,
@@ -464,6 +470,7 @@ func TestSchemaRegistryClient_GetLatestSchemaReturnsValueFromCache(t *testing.T)
 }
 
 func TestSchemaRegistryClient_GetSchemaType(t *testing.T) {
+	t.Parallel()
 	{
 		expectedSchemaType := Json
 		server, call := mockServerFromSubjectVersionPairWithSchemaResponse(t, "test1-value", "latest", schemaResponse{
@@ -503,6 +510,7 @@ func TestSchemaRegistryClient_GetSchemaType(t *testing.T) {
 }
 
 func TestSchemaRegistryClient_JsonSchemaParses(t *testing.T) {
+	t.Parallel()
 	{
 		server, call := mockServerFromSubjectVersionPairWithSchemaResponse(t, "test1-value", "latest", schemaResponse{
 			Subject:    "test1",
@@ -543,6 +551,7 @@ func TestSchemaRegistryClient_JsonSchemaParses(t *testing.T) {
 }
 
 func TestNewSchema(t *testing.T) {
+	t.Parallel()
 	const (
 		anId        = 3
 		aSchema     = "payload"
@@ -604,69 +613,72 @@ func TestNewSchema(t *testing.T) {
 }
 
 func TestSchemaRequestMarshal(t *testing.T) {
-	tests := map[string]struct{
-		schema string
+	t.Parallel()
+	tests := map[string]struct {
+		schema     string
 		schemaType SchemaType
 		references []Reference
-		expected string
+		expected   string
 	}{
 		"avro": {
-			schema: `test2`,
+			schema:     `test2`,
 			schemaType: Avro,
-			expected: `{"schema":"test2"}`,
+			expected:   `{"schema":"test2"}`,
 		},
 		"protobuf": {
-			schema: `test2`,
+			schema:     `test2`,
 			schemaType: Protobuf,
-			expected: `{"schema":"test2","schemaType":"PROTOBUF"}`,
+			expected:   `{"schema":"test2","schemaType":"PROTOBUF"}`,
 		},
 		"json": {
-			schema: `test2`,
+			schema:     `test2`,
 			schemaType: Json,
-			expected: `{"schema":"test2","schemaType":"JSON"}`,
+			expected:   `{"schema":"test2","schemaType":"JSON"}`,
 		},
 		"avro-empty-ref": {
-			schema: `test2`,
+			schema:     `test2`,
 			schemaType: Avro,
 			references: make([]Reference, 0),
-			expected: `{"schema":"test2"}`,
+			expected:   `{"schema":"test2"}`,
 		},
 		"protobuf-empty-ref": {
-			schema: `test2`,
+			schema:     `test2`,
 			schemaType: Protobuf,
 			references: make([]Reference, 0),
-			expected: `{"schema":"test2","schemaType":"PROTOBUF"}`,
+			expected:   `{"schema":"test2","schemaType":"PROTOBUF"}`,
 		},
 		"json-empty-ref": {
-			schema: `test2`,
+			schema:     `test2`,
 			schemaType: Json,
 			references: make([]Reference, 0),
-			expected: `{"schema":"test2","schemaType":"JSON"}`,
+			expected:   `{"schema":"test2","schemaType":"JSON"}`,
 		},
 		"avro-ref": {
-			schema: `test2`,
+			schema:     `test2`,
 			schemaType: Avro,
 			references: []Reference{{Name: "name1", Subject: "subject1", Version: 1}},
-			expected: `{"schema":"test2","references":[{"name":"name1","subject":"subject1","version":1}]}`,
+			expected:   `{"schema":"test2","references":[{"name":"name1","subject":"subject1","version":1}]}`,
 		},
 		"protobuf-ref": {
-			schema: `test2`,
+			schema:     `test2`,
 			schemaType: Protobuf,
 			references: []Reference{{Name: "name1", Subject: "subject1", Version: 1}},
-			expected: `{"schema":"test2","schemaType":"PROTOBUF","references":[{"name":"name1","subject":"subject1","version":1}]}`,
+			expected:   `{"schema":"test2","schemaType":"PROTOBUF","references":[{"name":"name1","subject":"subject1","version":1}]}`,
 		},
 		"json-ref": {
-			schema: `test2`,
+			schema:     `test2`,
 			schemaType: Json,
 			references: []Reference{{Name: "name1", Subject: "subject1", Version: 1}},
-			expected: `{"schema":"test2","schemaType":"JSON","references":[{"name":"name1","subject":"subject1","version":1}]}`,
+			expected:   `{"schema":"test2","schemaType":"JSON","references":[{"name":"name1","subject":"subject1","version":1}]}`,
 		},
 	}
 
 	for name, testData := range tests {
+		testData := testData
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			schemaReq := schemaRequest{
-				Schema: testData.schema,
+				Schema:     testData.schema,
 				SchemaType: testData.schemaType.String(),
 				References: testData.references,
 			}
