@@ -1,7 +1,6 @@
 package srclient
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,9 +16,61 @@ import (
 )
 
 func bodyToString(in io.ReadCloser) string {
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(in)
-	return buf.String()
+	result, _ := io.ReadAll(in)
+	return string(result)
+}
+
+func TestNewSchemaRegistryClient_SetsExpectedOptions(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		registryUrl string
+		options     []Option
+
+		expectedClient          *http.Client
+		expectedSemaphoreWeight int64
+	}{
+		"no options": {
+			registryUrl: "localhost:8080",
+
+			expectedClient:          &http.Client{Timeout: defaultTimeout},
+			expectedSemaphoreWeight: defaultSemaphoreWeight,
+		},
+		"custom semaphore weight": {
+			registryUrl: "local:8080",
+			options:     []Option{WithSemaphoreWeight(32)},
+
+			expectedClient:          &http.Client{Timeout: defaultTimeout},
+			expectedSemaphoreWeight: 32,
+		},
+		"custom client": {
+			registryUrl: "172.0.0.1:8080",
+			options:     []Option{WithClient(&http.Client{Timeout: 32})},
+
+			expectedClient:          &http.Client{Timeout: 32},
+			expectedSemaphoreWeight: defaultSemaphoreWeight,
+		},
+	}
+
+	for name, testData := range tests {
+		testData := testData
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			// Act
+			result := NewSchemaRegistryClient(testData.registryUrl, testData.options...)
+
+			// Assert
+			assert.Equal(t, testData.registryUrl, result.schemaRegistryURL)
+			assert.Equal(t, testData.expectedClient, result.httpClient)
+
+			// We should be able to acquire the semaphore by the size we specified
+			assert.True(t, result.sem.TryAcquire(testData.expectedSemaphoreWeight))
+			result.sem.Release(testData.expectedSemaphoreWeight)
+
+			// Anthing bigger than that weight should fail
+			assert.False(t, result.sem.TryAcquire(testData.expectedSemaphoreWeight+1))
+		})
+	}
 }
 
 func TestSchemaRegistryClient_CreateSchemaWithoutReferences(t *testing.T) {
