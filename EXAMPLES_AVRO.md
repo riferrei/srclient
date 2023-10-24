@@ -44,7 +44,7 @@ func main() {
 	}()
 
 	// 2) Fetch the latest version of the schema, or create a new one if it is the first
-	schemaRegistryClient := srclient.CreateSchemaRegistryClient("http://localhost:8081")
+	schemaRegistryClient := srclient.NewSchemaRegistryClient("http://localhost:8081")
 	schema, err := schemaRegistryClient.GetLatestSchema(topic)
 	if schema == nil {
 		schemaBytes, _ := ioutil.ReadFile("complexType.avsc")
@@ -105,7 +105,7 @@ func main() {
 	c.SubscribeTopics([]string{"myTopic", "^aRegex.*[Tt]opic"}, nil)
 
 	// 2) Create a instance of the client to retrieve the schemas for each message
-	schemaRegistryClient := srclient.CreateSchemaRegistryClient("http://localhost:8081")
+	schemaRegistryClient := srclient.NewSchemaRegistryClient("http://localhost:8081")
 
 	for {
 		msg, err := c.ReadMessage(-1)
