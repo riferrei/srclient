@@ -20,6 +20,9 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+const defaultSemaphoreWeight int64 = 16
+const defaultTimeout = 5 * time.Second
+
 // ISchemaRegistryClient provides the
 // definition of the operations that
 // this Schema Registry client provides.
@@ -102,7 +105,7 @@ func (s CompatibilityLevel) String() string {
 	return string(s)
 }
 
-// Schema references use the import statement of Protobuf and
+// Reference references use the import statement of Protobuf and
 // the $ref field of JSON Schema. They are defined by the name
 // of the import or $ref and the associated subject in the registry.
 type Reference struct {
@@ -174,37 +177,77 @@ const (
 	contentType      = "application/vnd.schemaregistry.v1+json"
 )
 
-// CreateSchemaRegistryClient creates a client that allows
+// schemaRegistryConfig is used in NewSchemaRegistryClient and is configured through Option
+type schemaRegistryConfig struct {
+	client          *http.Client
+	semaphoreWeight int64
+}
+
+// Option serves as an input for NewSchemaRegistryClient
+type Option func(*schemaRegistryConfig)
+
+// WithClient is used in NewSchemaRegistryClient to override the default client
+func WithClient(client *http.Client) Option {
+	return func(registryConfig *schemaRegistryConfig) {
+		registryConfig.client = client
+	}
+}
+
+// WithSemaphoreWeight is used in NewSchemaRegistryClient to override the default semaphoreWeight
+func WithSemaphoreWeight(semaphoreWeight int64) Option {
+	return func(registryConfig *schemaRegistryConfig) {
+		registryConfig.semaphoreWeight = semaphoreWeight
+	}
+}
+
+// NewSchemaRegistryClient creates a client that allows
 // interactions with Schema Registry over HTTP. Applications
 // using this client can retrieve data about schemas, which
 // in turn can be used to serialize and deserialize records.
-func CreateSchemaRegistryClient(schemaRegistryURL string) *SchemaRegistryClient {
-	return CreateSchemaRegistryClientWithOptions(schemaRegistryURL, &http.Client{Timeout: 5 * time.Second}, 16)
-}
+func NewSchemaRegistryClient(schemaRegistryURL string, options ...Option) *SchemaRegistryClient {
+	config := &schemaRegistryConfig{
+		client:          &http.Client{Timeout: defaultTimeout},
+		semaphoreWeight: defaultSemaphoreWeight,
+	}
 
-// CreateSchemaRegistryClientWithOptions provides the ability to pass the http.Client to be used, as well as the semaphoreWeight for concurrent requests
-func CreateSchemaRegistryClientWithOptions(schemaRegistryURL string, client *http.Client, semaphoreWeight int) *SchemaRegistryClient {
+	for _, option := range options {
+		option(config)
+	}
+
 	return &SchemaRegistryClient{
 		schemaRegistryURL:    schemaRegistryURL,
-		httpClient:           client,
+		httpClient:           config.client,
 		cachingEnabled:       true,
 		codecCreationEnabled: false,
 		idSchemaCache:        make(map[int]*Schema),
 		subjectSchemaCache:   make(map[string]*Schema),
-		sem:                  semaphore.NewWeighted(int64(semaphoreWeight)),
+		sem:                  semaphore.NewWeighted(config.semaphoreWeight),
 	}
+}
+
+// CreateSchemaRegistryClient creates a client that allows
+// interactions with Schema Registry over HTTP. Applications
+// using this client can retrieve data about schemas, which
+// in turn can be used to serialize and deserialize records.
+// Deprecated: Prefer NewSchemaRegistryClient(schemaRegistryURL)
+func CreateSchemaRegistryClient(schemaRegistryURL string) *SchemaRegistryClient {
+	return NewSchemaRegistryClient(schemaRegistryURL)
+}
+
+// CreateSchemaRegistryClientWithOptions provides the ability to pass the http.Client to be used, as well as the semaphoreWeight for concurrent requests
+// Deprecated: Prefer NewSchemaRegistryClient(schemaRegistryURL, WithClient(*http.Client), WithSemaphoreWeight(int64))
+func CreateSchemaRegistryClientWithOptions(schemaRegistryURL string, client *http.Client, semaphoreWeight int) *SchemaRegistryClient {
+	return NewSchemaRegistryClient(schemaRegistryURL, WithClient(client), WithSemaphoreWeight(int64(semaphoreWeight)))
 }
 
 // ResetCache resets the schema caches to be able to get updated schemas.
 func (client *SchemaRegistryClient) ResetCache() {
-
 	client.idSchemaCacheLock.Lock()
 	client.subjectSchemaCacheLock.Lock()
 	client.idSchemaCache = make(map[int]*Schema)
 	client.subjectSchemaCache = make(map[string]*Schema)
 	client.idSchemaCacheLock.Unlock()
 	client.subjectSchemaCacheLock.Unlock()
-
 }
 
 // GetSchema gets the schema associated with the given id.
@@ -225,10 +268,10 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 	}
 
 	var schemaResp = new(schemaResponse)
-	err = json.Unmarshal(resp, &schemaResp)
-	if err != nil {
+	if err := json.Unmarshal(resp, &schemaResp); err != nil {
 		return nil, err
 	}
+
 	var codec *goavro.Codec
 	if client.getCodecCreationEnabled() {
 		codec, err = goavro.NewCodec(schemaResp.Schema)
@@ -236,6 +279,7 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 			return nil, err
 		}
 	}
+
 	var schema = &Schema{
 		id:         schemaID,
 		schema:     schemaResp.Schema,
@@ -324,8 +368,7 @@ func (client *SchemaRegistryClient) GetCompatibilityLevel(subject string, defaul
 	}
 
 	var configResponse = new(configResponse)
-	err = json.Unmarshal(resp, &configResponse)
-	if err != nil {
+	if err := json.Unmarshal(resp, &configResponse); err != nil {
 		return nil, err
 	}
 
@@ -338,11 +381,12 @@ func (client *SchemaRegistryClient) GetSubjects() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	var allSubjects = []string{}
-	err = json.Unmarshal(resp, &allSubjects)
-	if err != nil {
+
+	var allSubjects []string
+	if err = json.Unmarshal(resp, &allSubjects); err != nil {
 		return nil, err
 	}
+
 	return allSubjects, nil
 }
 
@@ -352,11 +396,11 @@ func (client *SchemaRegistryClient) GetSubjectsIncludingDeleted() ([]string, err
 	if err != nil {
 		return nil, err
 	}
-	var allSubjects = []string{}
-	err = json.Unmarshal(resp, &allSubjects)
-	if err != nil {
+	var allSubjects []string
+	if err = json.Unmarshal(resp, &allSubjects); err != nil {
 		return nil, err
 	}
+
 	return allSubjects, nil
 }
 

@@ -163,10 +163,12 @@ func (mck *MockSchemaRegistryClient) GetSchemaByVersion(subject string, version 
 
 // GetSubjects Returns all registered subjects
 func (mck *MockSchemaRegistryClient) GetSubjects() ([]string, error) {
-	var allSubjects []string
+	allSubjects := make([]string, len(mck.schemaVersions))
 
+	var count int
 	for subject := range mck.schemaVersions {
-		allSubjects = append(allSubjects, subject)
+		allSubjects[count] = subject
+		count++
 	}
 
 	return allSubjects, nil
@@ -321,8 +323,13 @@ func (mck *MockSchemaRegistryClient) allVersions(subject string) []int {
 	result, ok := mck.schemaVersions[subject]
 
 	if ok {
+		versions = make([]int, len(result))
+
+		var count int
+
 		for version := range result {
-			versions = append(versions, version)
+			versions[count] = version
+			count++
 		}
 	}
 
