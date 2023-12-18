@@ -31,6 +31,7 @@ type ISchemaRegistryClient interface {
 	GetSchema(schemaID int) (*Schema, error)
 	GetLatestSchema(subject string) (*Schema, error)
 	GetSchemaVersions(subject string) ([]int, error)
+	GetSubjectVersionsById(schemaID int) (SubjectVersionResponse, error)
 	GetSchemaByVersion(subject string, version int) (*Schema, error)
 	CreateSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
 	LookupSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
@@ -163,15 +164,23 @@ type configChangeRequest struct {
 
 type configChangeResponse configChangeRequest
 
+type SubjectVersionResponse []subjectVersionPair
+
+type subjectVersionPair struct {
+	Subject string `json:"subject"`
+	Version int    `json:"version"`
+}
+
 const (
-	schemaByID       = "/schemas/ids/%d"
-	subjectBySubject = "/subjects/%s"
-	subjectVersions  = "/subjects/%s/versions"
-	subjectByVersion = "/subjects/%s/versions/%s"
-	subjects         = "/subjects"
-	config           = "/config"
-	configBySubject  = "/config/%s"
-	contentType      = "application/vnd.schemaregistry.v1+json"
+	schemaByID          = "/schemas/ids/%d"
+	subjectVersionsByID = "/schemas/ids/%d/versions"
+	subjectBySubject    = "/subjects/%s"
+	subjectVersions     = "/subjects/%s/versions"
+	subjectByVersion    = "/subjects/%s/versions/%s"
+	subjects            = "/subjects"
+	config              = "/config"
+	configBySubject     = "/config/%s"
+	contentType         = "application/vnd.schemaregistry.v1+json"
 )
 
 // CreateSchemaRegistryClient creates a client that allows
@@ -258,6 +267,22 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 // The schema returned contains the last version for that subject.
 func (client *SchemaRegistryClient) GetLatestSchema(subject string) (*Schema, error) {
 	return client.getVersion(subject, "latest")
+}
+
+// GetSubjectVersionsById returns subject-version pairs identified by the schema ID.
+func (client *SchemaRegistryClient) GetSubjectVersionsById(schemaID int) (SubjectVersionResponse, error) {
+	resp, err := client.httpRequest("GET", fmt.Sprintf(subjectVersionsByID, schemaID), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response = new(SubjectVersionResponse)
+	err = json.Unmarshal(resp, &response)
+	if err != nil {
+		return nil, err
+	}
+
+	return *response, nil
 }
 
 // GetSchemaVersions returns a list of versions from a given subject.

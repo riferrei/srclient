@@ -131,6 +131,35 @@ func (mck *MockSchemaRegistryClient) GetSchemaVersions(subject string) ([]int, e
 	return versions, nil
 }
 
+// GetSubjectVersionsById Returns subject-version pairs identified by the schema ID.
+func (mck *MockSchemaRegistryClient) GetSubjectVersionsById(schemaID int) (SubjectVersionResponse, error) {
+	for subjectName, schemaVersionsMap := range mck.schemaVersions {
+		for _, schema := range schemaVersionsMap {
+			if schema.id == schemaID {
+				subjectVersionResponse := make(SubjectVersionResponse, 0, len(schemaVersionsMap))
+				for schemaVersionKey := range schemaVersionsMap {
+					subjectVersionResponse = append(
+						subjectVersionResponse,
+						subjectVersionPair{
+							Subject: subjectName,
+							Version: schemaVersionKey,
+						},
+					)
+				}
+				return subjectVersionResponse, nil
+			}
+		}
+	}
+
+	posErr := url.Error{
+		Op:  "GET",
+		URL: fmt.Sprintf("%s/schemas/ids/%d/versions", mck.schemaRegistryURL, schemaID),
+		Err: errSchemaNotFound,
+	}
+
+	return nil, &posErr
+}
+
 // GetSchemaByVersion Returns the given Schema according to the passed in subject and version number
 func (mck *MockSchemaRegistryClient) GetSchemaByVersion(subject string, version int) (*Schema, error) {
 	var schema *Schema

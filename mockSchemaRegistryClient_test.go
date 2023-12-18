@@ -323,6 +323,46 @@ func TestMockSchemaRegistryClient_GetSchema_ReturnsErrOnNotFound(t *testing.T) {
 	assert.Nil(t, result)
 }
 
+func TestMockSchemaRegistryClient_GetSubjectVersionsById_ReturnsSubjectVersions(t *testing.T) {
+	t.Parallel()
+	// Arrange
+	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
+	registry.schemaVersions["cupcake"] = map[int]*Schema{
+		1: {id: 1, version: 1},
+		2: {id: 2, version: 2},
+		3: {id: 3, version: 3},
+	}
+	registry.schemaVersions["bakery"] = map[int]*Schema{
+		1: {id: 4, version: 1},
+		2: {id: 5, version: 2},
+	}
+
+	// Act
+	result, err := registry.GetSubjectVersionsById(2)
+
+	// Assert
+	assert.Nil(t, err)
+
+	assert.Len(t, result, 3)
+	assert.Equal(t, "cupcake", result[0].Subject)
+	assert.Equal(t, "cupcake", result[1].Subject)
+	assert.Equal(t, "cupcake", result[2].Subject)
+}
+
+func TestMockSchemaRegistryClient_GetSubjectVersionsById_ReturnsErrOnNotFound(t *testing.T) {
+	t.Parallel()
+	// Arrange
+	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
+
+	// Act
+	result, err := registry.GetSubjectVersionsById(2)
+
+	// Assert
+	assert.ErrorIs(t, err, errSchemaNotFound)
+
+	assert.Nil(t, result)
+}
+
 func TestMockSchemaRegistryClient_GetLatestSchema_ReturnsErrorOn0SchemaVersions(t *testing.T) {
 	t.Parallel()
 	// Arrange
