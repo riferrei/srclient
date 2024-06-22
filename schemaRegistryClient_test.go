@@ -560,6 +560,34 @@ func TestSchemaRegistryClient_GetSchemaType(t *testing.T) {
 	}
 }
 
+func TestSchemaRegistryClient_GetSubjectVersionsById(t *testing.T) {
+	t.Parallel()
+	{
+		server, call := mockServerWithSubjectVersionResponse(t, fmt.Sprintf("/schemas/ids/%d/versions", 1), SubjectVersionResponse{
+			subjectVersionPair{
+				Subject: "test1",
+				Version: 1,
+			},
+			subjectVersionPair{
+				Subject: "test1",
+				Version: 2,
+			},
+		})
+
+		srClient := CreateSchemaRegistryClient(server.URL)
+		response, err := srClient.GetSubjectVersionsById(1)
+
+		// Test response
+		assert.NoError(t, err)
+		assert.Equal(t, 1, *call)
+		assert.Len(t, response, 2)
+		assert.Equal(t, response[0].Subject, "test1")
+		assert.Equal(t, response[0].Version, 1)
+		assert.Equal(t, response[1].Subject, "test1")
+		assert.Equal(t, response[1].Version, 2)
+	}
+}
+
 func TestSchemaRegistryClient_JsonSchemaParses(t *testing.T) {
 	t.Parallel()
 	{
@@ -753,6 +781,25 @@ func mockServerWithSchemaResponse(t *testing.T, url string, schemaResponse schem
 	return httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		count++
 		response, _ := json.Marshal(schemaResponse)
+
+		switch req.URL.String() {
+		case url:
+			// Send response to be tested
+			_, err := rw.Write(response)
+			if err != nil {
+				t.Errorf("could not write response %s", err)
+			}
+		default:
+			require.Fail(t, "unhandled request")
+		}
+	})), &count
+}
+
+func mockServerWithSubjectVersionResponse(t *testing.T, url string, subjectVersionResponse SubjectVersionResponse) (*httptest.Server, *int) {
+	var count int
+	return httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		count++
+		response, _ := json.Marshal(subjectVersionResponse)
 
 		switch req.URL.String() {
 		case url:
