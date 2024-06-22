@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -739,7 +740,11 @@ func (client *SchemaRegistryClient) httpRequest(method, uri string, payload io.R
 		if len(client.credentials.username) > 0 && len(client.credentials.password) > 0 {
 			req.SetBasicAuth(client.credentials.username, client.credentials.password)
 		} else if len(client.credentials.bearerToken) > 0 {
-			req.Header.Add("Authorization", "Bearer "+client.credentials.bearerToken)
+			if strings.Contains(strings.ToLower(uri), "confluent.cloud") {
+				req.Header.Add("Authorization", "Basic "+client.credentials.bearerToken)
+			} else {
+				req.Header.Add("Authorization", "Bearer "+client.credentials.bearerToken)
+			}
 		}
 	}
 	req.Header.Set("Content-Type", contentType)
