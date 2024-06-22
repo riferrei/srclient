@@ -62,6 +62,7 @@ type SchemaRegistryClient struct {
 	cachingEnabled           bool
 	cachingEnabledLock       sync.RWMutex
 	codecCreationEnabled     bool
+	codecAsFullJson          bool
 	codecCreationEnabledLock sync.RWMutex
 	idSchemaCache            map[int]*Schema
 	idSchemaCacheLock        sync.RWMutex
@@ -283,7 +284,7 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 
 	var codec *goavro.Codec
 	if client.getCodecCreationEnabled() {
-		codec, err = goavro.NewCodec(schemaResp.Schema)
+		codec, err = client.getCodecForSchema(schemaResp.Schema)
 		if err != nil {
 			return nil, err
 		}
@@ -530,7 +531,7 @@ func (client *SchemaRegistryClient) LookupSchema(subject string, schema string, 
 
 	var codec *goavro.Codec
 	if client.getCodecCreationEnabled() && schemaType == Avro {
-		codec, err = goavro.NewCodec(schemaResp.Schema)
+		codec, err = client.getCodecForSchema(schemaResp.Schema)
 		if err != nil {
 			return nil, err
 		}
@@ -662,6 +663,15 @@ func (client *SchemaRegistryClient) CodecCreationEnabled(value bool) {
 	client.codecCreationEnabled = value
 }
 
+// CodecJsonEnabled allows the application to create codec,
+// which will serialize/deserialize data as standard json.
+// Should be used with CodecCreationEnabled, otherwise it will be ignored.
+func (client *SchemaRegistryClient) CodecJsonEnabled(value bool) {
+	client.codecCreationEnabledLock.Lock()
+	defer client.codecCreationEnabledLock.Unlock()
+	client.codecAsFullJson = value
+}
+
 func (client *SchemaRegistryClient) getVersion(subject string, version string) (*Schema, error) {
 
 	if client.getCachingEnabled() {
@@ -686,7 +696,7 @@ func (client *SchemaRegistryClient) getVersion(subject string, version string) (
 	}
 	var codec *goavro.Codec
 	if client.getCodecCreationEnabled() {
-		codec, err = goavro.NewCodec(schemaResp.Schema)
+		codec, err = client.getCodecForSchema(schemaResp.Schema)
 		if err != nil {
 			return nil, err
 		}
@@ -761,6 +771,15 @@ func (client *SchemaRegistryClient) getCodecCreationEnabled() bool {
 	client.codecCreationEnabledLock.RLock()
 	defer client.codecCreationEnabledLock.RUnlock()
 	return client.codecCreationEnabled
+}
+
+func (client *SchemaRegistryClient) getCodecForSchema(schema string) (*goavro.Codec, error) {
+	client.codecCreationEnabledLock.RLock()
+	defer client.codecCreationEnabledLock.RUnlock()
+	if client.codecAsFullJson {
+		return goavro.NewCodecForStandardJSONFull(schema)
+	}
+	return goavro.NewCodec(schema)
 }
 
 // NewSchema instantiates a new Schema struct.
