@@ -588,6 +588,23 @@ func TestSchemaRegistryClient_GetSubjectVersionsById(t *testing.T) {
 	}
 }
 
+func TestSchemaRegistryClient_GetSchemaRegistryURL(t *testing.T) {
+	t.Parallel()
+	server, _ := mockServerFromSubjectVersionPairWithSchemaResponse(t, "test1-value", "latest", schemaResponse{
+		Subject:    "test1",
+		Version:    1,
+		Schema:     "payload",
+		ID:         1,
+		References: nil,
+	})
+
+	srClient := CreateSchemaRegistryClient(server.URL)
+	// when
+	actual := srClient.GetSchemaRegistryURL()
+	// then
+	assert.Equal(t, actual, server.URL)
+}
+
 func TestSchemaRegistryClient_JsonSchemaParses(t *testing.T) {
 	t.Parallel()
 	{

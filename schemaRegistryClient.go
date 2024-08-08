@@ -37,6 +37,7 @@ type ISchemaRegistryClient interface {
 	GetSchemaVersions(subject string) ([]int, error)
 	GetSubjectVersionsById(schemaID int) (SubjectVersionResponse, error)
 	GetSchemaByVersion(subject string, version int) (*Schema, error)
+	GetSchemaRegistryURL() string
 	CreateSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
 	LookupSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
 	ChangeSubjectCompatibilityLevel(subject string, compatibility CompatibilityLevel) (*CompatibilityLevel, error)
@@ -249,6 +250,11 @@ func CreateSchemaRegistryClient(schemaRegistryURL string) *SchemaRegistryClient 
 // Deprecated: Prefer NewSchemaRegistryClient(schemaRegistryURL, WithClient(*http.Client), WithSemaphoreWeight(int64))
 func CreateSchemaRegistryClientWithOptions(schemaRegistryURL string, client *http.Client, semaphoreWeight int) *SchemaRegistryClient {
 	return NewSchemaRegistryClient(schemaRegistryURL, WithClient(client), WithSemaphoreWeight(int64(semaphoreWeight)))
+}
+
+// GetSchemaRegistryURL returns the URL of the Schema Registry
+func (client *SchemaRegistryClient) GetSchemaRegistryURL() string {
+	return client.schemaRegistryURL
 }
 
 // ResetCache resets the schema caches to be able to get updated schemas.

@@ -3,11 +3,12 @@ package srclient
 import (
 	"errors"
 	"fmt"
-	"github.com/linkedin/goavro/v2"
 	"net/url"
 	"regexp"
 	"sort"
 	"time"
+
+	"github.com/linkedin/goavro/v2"
 )
 
 // Compile-time interface check
@@ -201,6 +202,11 @@ func (mck *MockSchemaRegistryClient) GetSubjects() ([]string, error) {
 	}
 
 	return allSubjects, nil
+}
+
+// GetSchemaRegistryURL returns the URL of the schema registry
+func (mck *MockSchemaRegistryClient) GetSchemaRegistryURL() string {
+	return mck.schemaRegistryURL
 }
 
 // GetSubjectsIncludingDeleted is not implemented and returns an error
