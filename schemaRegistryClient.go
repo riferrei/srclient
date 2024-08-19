@@ -49,6 +49,7 @@ type ISchemaRegistryClient interface {
 	CachingEnabled(value bool)
 	ResetCache()
 	CodecCreationEnabled(value bool)
+	CodecJsonEnabled(value bool)
 	IsSchemaCompatible(subject, schema, version string, schemaType SchemaType, references ...Reference) (bool, error)
 }
 
