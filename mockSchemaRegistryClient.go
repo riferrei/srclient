@@ -292,6 +292,11 @@ func (mck *MockSchemaRegistryClient) CodecCreationEnabled(bool) {
 	// Nothing because codecs do not matter in the inMem storage of schemas
 }
 
+// CodecJsonEnabled is not implemented
+func (mck *MockSchemaRegistryClient) CodecJsonEnabled(value bool) {
+	// Nothing because codecs do not matter in the inMem storage of schemas
+}
+
 // IsSchemaCompatible is not implemented
 func (mck *MockSchemaRegistryClient) IsSchemaCompatible(string, string, string, SchemaType, ...Reference) (bool, error) {
 	return false, errNotImplemented
