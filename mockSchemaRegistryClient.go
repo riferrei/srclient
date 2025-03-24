@@ -36,6 +36,9 @@ type MockSchemaRegistryClient struct {
 
 	// idCounter is used to generate unique IDs for each schema
 	idCounter int
+
+	// track whether to use full json codec or regular avro json codec
+	codecJsonEnabled bool
 }
 
 // CreateMockSchemaRegistryClient initializes a MockSchemaRegistryClient
@@ -44,6 +47,7 @@ func CreateMockSchemaRegistryClient(mockURL string) *MockSchemaRegistryClient {
 		schemaRegistryURL: mockURL,
 		schemaVersions:    map[string]map[int]*Schema{},
 		schemaIDs:         map[int]*Schema{},
+		codecJsonEnabled:  false,
 	}
 
 	return mockClient
@@ -294,7 +298,7 @@ func (mck *MockSchemaRegistryClient) CodecCreationEnabled(bool) {
 
 // CodecJsonEnabled is not implemented
 func (mck *MockSchemaRegistryClient) CodecJsonEnabled(value bool) {
-	// Nothing because codecs do not matter in the inMem storage of schemas
+	mck.codecJsonEnabled = value
 }
 
 // IsSchemaCompatible is not implemented
@@ -305,6 +309,13 @@ func (mck *MockSchemaRegistryClient) IsSchemaCompatible(string, string, string, 
 // LookupSchema is not implemented
 func (mck *MockSchemaRegistryClient) LookupSchema(string, string, SchemaType, ...Reference) (*Schema, error) {
 	return nil, errNotImplemented
+}
+
+func (client *MockSchemaRegistryClient) getCodecForSchema(schema string) (*goavro.Codec, error) {
+	if client.codecJsonEnabled {
+		return goavro.NewCodecForStandardJSONFull(schema)
+	}
+	return goavro.NewCodec(schema)
 }
 
 /*
@@ -337,7 +348,7 @@ func (mck *MockSchemaRegistryClient) generateVersion(id int, subject string, sch
 	}
 
 	// Add a codec, required otherwise Codec() panics and the mock registry is unusable
-	codec, err := goavro.NewCodec(schema)
+	codec, err := mck.getCodecForSchema(schema)
 	if err != nil {
 		return nil, err
 	}
