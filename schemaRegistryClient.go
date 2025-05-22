@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -72,6 +73,8 @@ type SchemaRegistryClient struct {
 	subjectSchemaCache       map[string]*Schema
 	subjectSchemaCacheLock   sync.RWMutex
 	sem                      *semaphore.Weighted
+	jitter                   bool
+	retryDelays              []time.Duration
 }
 
 var _ ISchemaRegistryClient = new(SchemaRegistryClient)
@@ -235,6 +238,8 @@ func NewSchemaRegistryClient(schemaRegistryURL string, options ...Option) *Schem
 		idSchemaCache:        make(map[int]*Schema),
 		subjectSchemaCache:   make(map[string]*Schema),
 		sem:                  semaphore.NewWeighted(config.semaphoreWeight),
+		jitter:               true,
+		retryDelays:          []time.Duration{},
 	}
 }
 
@@ -314,6 +319,66 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 	}
 
 	return schema, nil
+}
+
+// getSchemaWithBackoff tries GetSchema(id) with a sleep delay to avoid follower
+// lag issues. It retries up to len(c.retryDelays) times, with the first delay
+// being c.retryDelays[0].
+func (c *SchemaRegistryClient) getSchemaWithBackoff(id int) (*Schema, error) {
+	if len(c.retryDelays) == 0 {
+		return c.GetSchema(id)
+	}
+
+	var lastErr error
+	for i, baseDelay := range c.retryDelays {
+		schema, err := c.GetSchema(id)
+		if err == nil {
+			return schema, nil
+		}
+		lastErr = err
+		if !isSchemaNotFound(err) {
+			return nil, err
+		}
+		if i == len(c.retryDelays)-1 {
+			break
+		}
+		delay := baseDelay
+		if c.jitter {
+			delay = delay/2 + time.Duration(rand.Int63n(int64(baseDelay)))
+		}
+		time.Sleep(delay)
+	}
+	return nil, fmt.Errorf("schema %d not found after %d attempts: %w",
+		id, len(c.retryDelays), lastErr)
+}
+
+// SetRetryDelays allows callers to customize the backoff delays between retries
+// to GetSchema() read-backs when calling CreateSchema(). Passing an empty slice
+// disables retries entirely. Call this immediately after creating the client,
+// before any CreateSchema() calls. Example:
+//
+//	client := NewSchemaRegistryClient("https://sr.example.com", nil)
+//	client.SetRetryDelays([]time.Duration{
+//	    50 * time.Millisecond,
+//	    100 * time.Millisecond,
+//	    200 * time.Millisecond,
+//	})
+func (c *SchemaRegistryClient) SetRetryDelays(delays []time.Duration) {
+	if len(delays) == 0 {
+		// disable retries entirely
+		c.retryDelays = nil
+	} else {
+		c.retryDelays = append([]time.Duration(nil), delays...)
+	}
+}
+
+// isSchemaNotFound returns true only on a Schema Registry Error with error_code 40403
+func isSchemaNotFound(err error) bool {
+	var srErr Error
+	if errors.As(err, &srErr) {
+		return srErr.Code == 40403
+	}
+	return false
 }
 
 // GetLatestSchema gets the schema associated with the given subject.
@@ -447,7 +512,8 @@ func (client *SchemaRegistryClient) GetSchemaByVersion(subject string, version i
 // CreateSchema creates a new schema in Schema Registry and associates
 // with the subject provided. It returns the newly created schema with
 // all its associated information.
-func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
+func (client *SchemaRegistryClient) CreateSchema(
+	subject string, schema string,
 	schemaType SchemaType, references ...Reference) (*Schema, error) {
 	switch schemaType {
 	case Avro, Json:
@@ -480,9 +546,9 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 		return nil, err
 	}
 
-	newSchema, err := client.GetSchema(schemaResp.ID)
+	newSchema, err := client.getSchemaWithBackoff(schemaResp.ID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("schema %d not found after retries: %w", schemaResp.ID, err)
 	}
 
 	if client.getCachingEnabled() {
