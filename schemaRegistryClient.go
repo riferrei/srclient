@@ -321,35 +321,92 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 	return schema, nil
 }
 
-// getSchemaWithBackoff tries GetSchema(id) with a sleep delay to avoid follower
-// lag issues. It retries up to len(c.retryDelays) times, with the first delay
-// being c.retryDelays[0].
-func (c *SchemaRegistryClient) getSchemaWithBackoff(id int) (*Schema, error) {
+// retryWithBackoff executes the provided function with retry logic and
+// exponential backoff.
+//
+// The function takes a callback 'fn' that returns two values: - A boolean
+// indicating whether the error is retryable - An error value (nil if
+// successful)
+//
+// If c.retryDelays slice is empty, the function is executed only once without
+// retries. Otherwise, retries occur according to the duration values in
+// c.retryDelays. When c.jitter is true, randomized jitter is added to the
+// delays to prevent thundering herd problems.
+//
+// The function stops retrying when one of the following conditions is met: -
+// The operation succeeds (fn returns nil error) - The operation fails with a
+// non-retryable error (fn returns false, err) - All retry attempts are
+// exhausted
+func (c *SchemaRegistryClient) retryWithBackoff(
+	fn func() (bool, error),
+) error {
 	if len(c.retryDelays) == 0 {
-		return c.GetSchema(id)
+		_, err := fn()
+		return err
 	}
 
 	var lastErr error
-	for i, baseDelay := range c.retryDelays {
-		schema, err := c.GetSchema(id)
+	for i, d := range c.retryDelays {
+		retryable, err := fn()
 		if err == nil {
-			return schema, nil
+			return nil
 		}
 		lastErr = err
-		if !isSchemaNotFound(err) {
-			return nil, err
+
+		if !retryable {
+			return err
 		}
 		if i == len(c.retryDelays)-1 {
 			break
 		}
-		delay := baseDelay
+
+		delay := d
 		if c.jitter {
-			delay = delay/2 + time.Duration(rand.Int63n(int64(baseDelay)))
+			delay = d/2 + time.Duration(rand.Int63n(int64(d)))
 		}
 		time.Sleep(delay)
 	}
-	return nil, fmt.Errorf("schema %d not found after %d attempts: %w",
-		id, len(c.retryDelays), lastErr)
+	return lastErr
+}
+
+// getSchemaWithBackoff tries GetSchema(id) until either it succeeds,
+// returns a non-NotFound error, or exhausts retries.
+func (c *SchemaRegistryClient) getSchemaWithBackoff(id int) (*Schema, error) {
+	var schema *Schema
+	err := c.retryWithBackoff(func() (bool, error) {
+		schemaResult, err := c.GetSchema(id)
+		if err != nil {
+			return isSchemaNotFound(err), err
+		}
+		schema = schemaResult
+		return false, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf(
+			"schema %d not found after %d attempts: %w",
+			id, len(c.retryDelays), err,
+		)
+	}
+	return schema, nil
+}
+
+// ChangeCompatibilityWithBackoff retries ChangeSubjectCompatibilityLevel
+// until it succeeds or exhausts retries.
+func (c *SchemaRegistryClient) ChangeCompatibilityWithBackoff(
+	subject string,
+	lvl CompatibilityLevel,
+) error {
+	err := c.retryWithBackoff(func() (bool, error) {
+		_, err := c.ChangeSubjectCompatibilityLevel(subject, lvl)
+		return true, err
+	})
+	if err != nil {
+		return fmt.Errorf(
+			"could not set compatibility level after %d tries: %w",
+			len(c.retryDelays), err,
+		)
+	}
+	return nil
 }
 
 // SetRetryDelays allows callers to customize the backoff delays between retries
