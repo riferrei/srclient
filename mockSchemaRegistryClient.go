@@ -1,6 +1,7 @@
 package srclient
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -309,6 +310,11 @@ func (mck *MockSchemaRegistryClient) IsSchemaCompatible(string, string, string, 
 // LookupSchema is not implemented
 func (mck *MockSchemaRegistryClient) LookupSchema(string, string, SchemaType, ...Reference) (*Schema, error) {
 	return nil, errNotImplemented
+}
+
+// LookupSchemaUnderSubject performs a semantic lookup of a schema under a subject (mock implementation).
+func (mck *MockSchemaRegistryClient) LookupSchemaUnderSubject(ctx context.Context, subject string, req *RegisterSchemaRequest, normalize bool) (version int, globalID int, schemaStr string, err error) {
+	return 0, 0, "", errNotImplemented
 }
 
 func (client *MockSchemaRegistryClient) getCodecForSchema(schema string) (*goavro.Codec, error) {

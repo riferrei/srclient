@@ -41,6 +41,7 @@ type ISchemaRegistryClient interface {
 	GetSchemaRegistryURL() string
 	CreateSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
 	LookupSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
+	LookupSchemaUnderSubject(ctx context.Context, subject string, req *RegisterSchemaRequest, normalize bool) (version int, globalID int, schemaStr string, err error)
 	ChangeSubjectCompatibilityLevel(subject string, compatibility CompatibilityLevel) (*CompatibilityLevel, error)
 	DeleteSubject(subject string, permanent bool) error
 	DeleteSubjectByVersion(subject string, version int, permanent bool) error
@@ -151,6 +152,22 @@ type schemaRequest struct {
 	References []Reference `json:"references,omitempty"`
 }
 
+type SchemaFormat string
+
+const (
+	FormatResolved         SchemaFormat = "resolved"          // AVRO
+	FormatIgnoreExtensions SchemaFormat = "ignore_extensions" // PROTOBUF
+	FormatSerialized       SchemaFormat = "serialized"        // PROTOBUF
+)
+
+// RegisterSchemaRequest represents the request body for semantic schema lookup
+type RegisterSchemaRequest struct {
+	Schema     string      `json:"schema"`
+	SchemaType SchemaType  `json:"schemaType,omitempty"`
+	References []Reference `json:"references,omitempty"`
+	Format     string      `json:"-"` // omit from JSON, used only for query string
+}
+
 type schemaResponse struct {
 	Subject    string      `json:"subject"`
 	Version    int         `json:"version"`
@@ -158,6 +175,13 @@ type schemaResponse struct {
 	SchemaType *SchemaType `json:"schemaType"`
 	ID         int         `json:"id"`
 	References []Reference `json:"references"`
+}
+
+// lookupSchemaResponse represents the response from the semantic lookup endpoint
+type lookupSchemaResponse struct {
+	Schema  string `json:"schema"`
+	ID      int    `json:"id"`
+	Version int    `json:"version"`
 }
 
 type isCompatibleResponse struct {
@@ -695,6 +719,61 @@ func (client *SchemaRegistryClient) LookupSchema(subject string, schema string, 
 	return gotSchema, nil
 }
 
+// LookupSchemaUnderSubject performs a semantic lookup of a schema under a subject.
+// This method calls the Schema Registry's POST /subjects/{subject} endpoint with normalize=true parameter.
+// It returns the version, global ID, and schema string of the semantically equivalent schema.
+// If normalize is true, the returned schema will be canonicalized.
+// Returns ErrSemanticSchemaNotFound if no semantically equivalent schema is found (40403).
+func (client *SchemaRegistryClient) LookupSchemaUnderSubject(ctx context.Context, subject string,
+	req *RegisterSchemaRequest, normalize bool) (version int, globalID int, schemaStr string, err error) {
+	if req == nil {
+		return 0, 0, "", fmt.Errorf("RegisterSchemaRequest cannot be nil")
+	}
+
+	// Prepare the request body
+	reqBytes, err := json.Marshal(req)
+	if err != nil {
+		return 0, 0, "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+	payload := bytes.NewBuffer(reqBytes)
+
+	// Construct the URL with query parameters
+	uri := fmt.Sprintf("/subjects/%s", url.QueryEscape(subject))
+
+	// Add query parameters
+	params := url.Values{}
+	if normalize {
+		params.Add("normalize", "true")
+	}
+
+	if req.Format != "" {
+		params.Add("format", req.Format)
+	}
+
+	if len(params) > 0 {
+		uri += "?" + params.Encode()
+	}
+
+	// Make the HTTP request
+	resp, err := client.httpRequestWithContext(ctx, "POST", uri, payload)
+	if err != nil {
+		// Check if this is a 40403 error (schema not found)
+		var srErr Error
+		if errors.As(err, &srErr) && srErr.Code == 40403 {
+			return 0, 0, "", ErrSemanticSchemaNotFound
+		}
+		return 0, 0, "", fmt.Errorf("failed to lookup schema: %w", err)
+	}
+
+	// Parse the response
+	var lookupResp lookupSchemaResponse
+	if err := json.Unmarshal(resp, &lookupResp); err != nil {
+		return 0, 0, "", fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	return lookupResp.Version, lookupResp.ID, lookupResp.Schema, nil
+}
+
 // IsSchemaCompatible checks if the given schema is compatible with the given subject and version
 // valid versions are versionID and "latest"
 func (client *SchemaRegistryClient) IsSchemaCompatible(subject, schema, version string, schemaType SchemaType, references ...Reference) (bool, error) {
@@ -896,6 +975,48 @@ func (client *SchemaRegistryClient) httpRequest(method, uri string, payload io.R
 	return ioutil.ReadAll(resp.Body)
 }
 
+// httpRequestWithContext makes an HTTP request with context support
+func (client *SchemaRegistryClient) httpRequestWithContext(ctx context.Context, method, uri string, payload io.Reader) ([]byte, error) {
+	url := fmt.Sprintf("%s%s", client.schemaRegistryURL, uri)
+	req, err := http.NewRequestWithContext(ctx, method, url, payload)
+	if err != nil {
+		return nil, err
+	}
+
+	if client.credentials != nil {
+		if len(client.credentials.username) > 0 && len(client.credentials.password) > 0 {
+			req.SetBasicAuth(client.credentials.username, client.credentials.password)
+		} else if len(client.credentials.bearerToken) > 0 {
+			if strings.Contains(strings.ToLower(uri), "confluent.cloud") {
+				req.Header.Add("Authorization", "Basic "+client.credentials.bearerToken)
+			} else {
+				req.Header.Add("Authorization", "Bearer "+client.credentials.bearerToken)
+			}
+		}
+	}
+	req.Header.Set("Content-Type", contentType)
+
+	// Acquire semaphore with context
+	if err := client.sem.Acquire(ctx, 1); err != nil {
+		return nil, fmt.Errorf("failed to acquire semaphore: %w", err)
+	}
+	defer client.sem.Release(1)
+
+	resp, err := client.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return nil, createError(resp)
+	}
+
+	return ioutil.ReadAll(resp.Body)
+}
+
 func (client *SchemaRegistryClient) getCachingEnabled() bool {
 	client.cachingEnabledLock.RLock()
 	defer client.cachingEnabledLock.RUnlock()
@@ -1017,3 +1138,9 @@ func createError(resp *http.Response) error {
 
 	return err
 }
+
+// ErrSchemaNotFound is returned when no semantically equivalent schema is found (40403)
+var ErrSchemaNotFound = errors.New("schema not found")
+
+// ErrSemanticSchemaNotFound is returned when no semantically equivalent schema is found during lookup (40403)
+var ErrSemanticSchemaNotFound = errors.New("no semantically equivalent schema found")
