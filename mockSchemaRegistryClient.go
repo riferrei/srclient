@@ -256,6 +256,11 @@ func (mck *MockSchemaRegistryClient) ChangeSubjectCompatibilityLevel(string, Com
 	return nil, errNotImplemented
 }
 
+// DeleteSubjectCompatibilityLevel is not implemented
+func (mck *MockSchemaRegistryClient) DeleteSubjectCompatibilityLevel(string) (*CompatibilityLevel, error) {
+	return nil, errNotImplemented
+}
+
 // GetGlobalCompatibilityLevel is not implemented
 func (mck *MockSchemaRegistryClient) GetGlobalCompatibilityLevel() (*CompatibilityLevel, error) {
 	return nil, errNotImplemented
