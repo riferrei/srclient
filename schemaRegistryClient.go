@@ -72,6 +72,7 @@ type SchemaRegistryClient struct {
 	subjectSchemaCache       map[string]*Schema
 	subjectSchemaCacheLock   sync.RWMutex
 	sem                      *semaphore.Weighted
+	preReqFn                 func(req *http.Request) error
 }
 
 var _ ISchemaRegistryClient = new(SchemaRegistryClient)
@@ -190,26 +191,26 @@ const (
 	contentType         = "application/vnd.schemaregistry.v1+json"
 )
 
-// schemaRegistryConfig is used in NewSchemaRegistryClient and is configured through Option
-type schemaRegistryConfig struct {
-	client          *http.Client
-	semaphoreWeight int64
-}
-
 // Option serves as an input for NewSchemaRegistryClient
-type Option func(*schemaRegistryConfig)
+type Option func(*SchemaRegistryClient)
 
 // WithClient is used in NewSchemaRegistryClient to override the default client
 func WithClient(client *http.Client) Option {
-	return func(registryConfig *schemaRegistryConfig) {
-		registryConfig.client = client
+	return func(registryConfig *SchemaRegistryClient) {
+		registryConfig.httpClient = client
 	}
 }
 
 // WithSemaphoreWeight is used in NewSchemaRegistryClient to override the default semaphoreWeight
 func WithSemaphoreWeight(semaphoreWeight int64) Option {
-	return func(registryConfig *schemaRegistryConfig) {
-		registryConfig.semaphoreWeight = semaphoreWeight
+	return func(client *SchemaRegistryClient) {
+		client.sem = semaphore.NewWeighted(semaphoreWeight)
+	}
+}
+
+func WithPreReqFn(preReq func(req *http.Request) error) Option {
+	return func(registryConfig *SchemaRegistryClient) {
+		registryConfig.preReqFn = preReq
 	}
 }
 
@@ -218,24 +219,20 @@ func WithSemaphoreWeight(semaphoreWeight int64) Option {
 // using this client can retrieve data about schemas, which
 // in turn can be used to serialize and deserialize records.
 func NewSchemaRegistryClient(schemaRegistryURL string, options ...Option) *SchemaRegistryClient {
-	config := &schemaRegistryConfig{
-		client:          &http.Client{Timeout: defaultTimeout},
-		semaphoreWeight: defaultSemaphoreWeight,
-	}
-
-	for _, option := range options {
-		option(config)
-	}
-
-	return &SchemaRegistryClient{
+	client := &SchemaRegistryClient{
 		schemaRegistryURL:    schemaRegistryURL,
-		httpClient:           config.client,
+		httpClient:           &http.Client{Timeout: defaultTimeout},
 		cachingEnabled:       true,
 		codecCreationEnabled: false,
 		idSchemaCache:        make(map[int]*Schema),
 		subjectSchemaCache:   make(map[string]*Schema),
-		sem:                  semaphore.NewWeighted(config.semaphoreWeight),
+		sem:                  semaphore.NewWeighted(defaultSemaphoreWeight),
 	}
+	for _, option := range options {
+		option(client)
+	}
+
+	return client
 }
 
 // CreateSchemaRegistryClient creates a client that allows
@@ -755,6 +752,12 @@ func (client *SchemaRegistryClient) httpRequest(method, uri string, payload io.R
 		}
 	}
 	req.Header.Set("Content-Type", contentType)
+
+	if client.preReqFn != nil {
+		if err := client.preReqFn(req); err != nil {
+			return nil, fmt.Errorf("pre-request function failed: %w", err)
+		}
+	}
 
 	client.sem.Acquire(context.Background(), 1)
 	defer client.sem.Release(1)
