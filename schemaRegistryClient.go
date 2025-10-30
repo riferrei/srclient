@@ -604,13 +604,13 @@ func (client *SchemaRegistryClient) IsSchemaCompatible(subject, schema, version 
 // DeleteSubject deletes
 func (client *SchemaRegistryClient) DeleteSubject(subject string, permanent bool) error {
 	uri := "/subjects/" + url.PathEscape(subject)
-	_, err := client.httpRequest("DELETE", uri, nil)
-	if err != nil || !permanent {
+
+	if permanent {
+		_, err := client.httpRequest("DELETE", uri+"?permanent=true", nil)
 		return err
 	}
 
-	uri += "?permanent=true"
-	_, err = client.httpRequest("DELETE", uri, nil)
+	_, err := client.httpRequest("DELETE", uri, nil)
 	return err
 }
 
