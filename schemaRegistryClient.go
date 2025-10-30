@@ -41,6 +41,7 @@ type ISchemaRegistryClient interface {
 	CreateSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
 	LookupSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
 	ChangeSubjectCompatibilityLevel(subject string, compatibility CompatibilityLevel) (*CompatibilityLevel, error)
+	DeleteSubjectCompatibilityLevel(subject string) (*CompatibilityLevel, error)
 	DeleteSubject(subject string, permanent bool) error
 	DeleteSubjectByVersion(subject string, version int, permanent bool) error
 	SetCredentials(username string, password string)
@@ -374,6 +375,20 @@ func (client *SchemaRegistryClient) ChangeSubjectCompatibilityLevel(subject stri
 		return nil, err
 	}
 
+	return &cfgChangeResp.CompatibilityLevel, nil
+}
+
+// DeleteSubjectCompatibilityLevel deletes subject-level compatibility level config and reverts to the global default.
+func (client *SchemaRegistryClient) DeleteSubjectCompatibilityLevel(subject string) (*CompatibilityLevel, error) {
+	resp, err := client.httpRequest("DELETE", fmt.Sprintf(configBySubject, url.QueryEscape(subject)), nil)
+	if err != nil {
+		return nil, err
+	}
+	var cfgChangeResp = new(configChangeResponse)
+	err = json.Unmarshal(resp, &cfgChangeResp)
+	if err != nil {
+		return nil, err
+	}
 	return &cfgChangeResp.CompatibilityLevel, nil
 }
 
